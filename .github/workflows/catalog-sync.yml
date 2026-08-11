@@ -168,36 +168,52 @@ jobs:
 
       - name: Report the result
         run: |
-          events=$(flyctl machines list --app "$FLY_APP" --json \
-                   | jq --arg n "$MACHINE_NAME" '.[] | select(.name==$n) | .events')
+          # Fly's JSON omits exit_code entirely when it is 0, so an exit event
+          # *without* the field means the command succeeded — it is not an
+          # unreadable result. Only the absence of the whole exit event is
+          # genuinely unknown. Reading it the other way round fails every
+          # successful run, which is exactly what it did the first time.
+          read_exit() {
+            flyctl machines list --app "$FLY_APP" --json \
+              | jq -r --arg n "$MACHINE_NAME" '
+                  .[] | select(.name==$n) | .events
+                  | (map(select(.type=="exit")) | first | .request.exit_event) as $e
+                  | if $e == null then "unknown"
+                    else "\($e.exit_code // 0) \($e.oom_killed // false)" end'
+          }
 
-          # Field access on null yields null in jq, so an absent exit event falls
-          # through to "unknown" rather than erroring.
-          code=$(echo "$events" | jq -r \
-                 '(map(select(.type=="exit")) | first | .request.exit_event.exit_code) // "unknown"')
-          oom=$(echo "$events" | jq -r \
-                '(map(select(.type=="exit")) | first | .request.exit_event.oom_killed) // false')
+          # The exit event can lag the state change that ended the wait loop, so
+          # give it a minute before calling it unreadable.
+          result="unknown"
+          for _ in 1 2 3 4 5 6; do
+            result=$(read_exit)
+            [ "$result" != "unknown" ] && break
+            echo "exit event not recorded yet; retrying"
+            sleep 10
+          done
+
+          if [ "$result" = "unknown" ]; then
+            # Never pass on a result we could not read: a silent nightly failure
+            # is the whole thing this step exists to prevent.
+            echo "::error::could not read the sync's exit event"
+            exit 1
+          fi
+
+          code=${result%% *}
+          oom=${result##* }
+          echo "exit_code=$code oom_killed=$oom"
 
           if [ "$oom" = "true" ]; then
             echo "::error::the sync was OOM-killed; raise --vm-memory"
             exit 1
           fi
 
-          case "$code" in
-            0)
-              echo "catalog sync completed"
-              ;;
-            unknown)
-              # Never pass on a result we could not read: a silent nightly
-              # failure is the whole thing this step exists to prevent.
-              echo "::error::could not determine the sync's exit code"
-              exit 1
-              ;;
-            *)
-              echo "::error::catalog sync failed (exit $code); see the logs above, and resume with the id from the last 'page N' line"
-              exit 1
-              ;;
-          esac
+          if [ "$code" = "0" ]; then
+            echo "catalog sync completed"
+          else
+            echo "::error::catalog sync failed (exit $code); see the logs above, and resume with the id from the last 'page N' line"
+            exit 1
+          fi
 
       # always(), so a failed or cancelled run does not leave a machine behind
       # (and does not leave it billing). The cleanup step at the top is the
