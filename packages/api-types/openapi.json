@@ -1,0 +1,5892 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Sidequestd API",
+    "description": "Shared API for the Sidequestd web and mobile clients.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Create an account",
+        "description": "Register and sign in as the new user in one round trip.",
+        "operationId": "register_api_v1_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSession"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Username or email already in use"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Sign in with email or username",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSession"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Exchange a refresh token for a new token pair",
+        "description": "Rotates: the presented token is revoked and a fresh pair is issued.\n\nPresenting a token that was already rotated revokes every token descended\nfrom the same login, on the assumption that a copy has leaked.\n\nAny failure here clears the browser's refresh cookie \u2014 see the\nInvalidRefreshTokenError branch of the handler in main.py.",
+        "operationId": "refresh_api_v1_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSession"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked, or replayed refresh token"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Sign out",
+        "description": "Idempotent, and deliberately unauthenticated: a client whose access token\nhas already expired must still be able to invalidate its refresh token.",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/password-reset": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Request a password reset email",
+        "description": "Always returns 202, whether or not the address is registered \u2014 the\nresponse must not reveal which emails have accounts.",
+        "operationId": "request_password_reset_api_v1_auth_password_reset_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/password-reset/confirm": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Set a new password using an emailed token",
+        "description": "Consumes the token and signs the user out everywhere.",
+        "operationId": "confirm_password_reset_api_v1_auth_password_reset_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetConfirm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Token is invalid, expired, or already used"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "The signed-in user's own record",
+        "operationId": "read_current_user_api_v1_users_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserMe"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Edit your own profile",
+        "description": "SPEC \u00a76.2. Omitted fields are left alone; an explicit null clears one.\n\nThe handle and email are not editable here \u2014 both are identity, and changing\nthem has consequences (dead profile links, a re-verification flow) that\nbelong in settings rather than in a profile edit form.",
+        "operationId": "update_current_user_api_v1_users_me_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserMe"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/avatar": {
+      "put": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Upload a profile picture",
+        "description": "Store the image and point the profile at it (SPEC \u00a76.2).\n\nThe declared content type and filename are both ignored \u2014 the stored type is\nsniffed from the bytes and the key is server-generated. See\n`app.services.storage`.",
+        "operationId": "upload_avatar_api_v1_users_me_avatar_put",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_avatar_api_v1_users_me_avatar_put"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserMe"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "File exceeds the size limit"
+          },
+          "415": {
+            "description": "Not an image we accept"
+          },
+          "503": {
+            "description": "Object storage is unreachable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Remove your profile picture",
+        "operationId": "delete_avatar_api_v1_users_me_avatar_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserMe"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/favorites": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Your curated games, in pinned order",
+        "operationId": "read_favorites_api_v1_users_me_favorites_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FavoriteGameEntry"
+                  },
+                  "type": "array",
+                  "title": "Response Read Favorites Api V1 Users Me Favorites Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Reorder your pinned games",
+        "operationId": "reorder_favorites_api_v1_users_me_favorites_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FavoriteReorder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FavoriteGameEntry"
+                  },
+                  "type": "array",
+                  "title": "Response Reorder Favorites Api V1 Users Me Favorites Put"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a permutation of the current list"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Pin a game to your profile",
+        "description": "Appends to the end. Returns the whole list so a client never has to guess\nthe resulting order.",
+        "operationId": "add_favorite_api_v1_users_me_favorites_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FavoriteCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FavoriteGameEntry"
+                  },
+                  "type": "array",
+                  "title": "Response Add Favorite Api V1 Users Me Favorites Post"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such game in the catalog"
+          },
+          "409": {
+            "description": "Already pinned, or the list is full"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/favorites/{game_id}": {
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Unpin a game",
+        "operationId": "remove_favorite_api_v1_users_me_favorites__game_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Catalog id of the pinned game",
+              "title": "Game Id"
+            },
+            "description": "Catalog id of the pinned game"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FavoriteGameEntry"
+                  },
+                  "title": "Response Remove Favorite Api V1 Users Me Favorites  Game Id  Delete"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not one of your favorites"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/lists": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Your four backlog lists, each in your own order",
+        "description": "SPEC \u00a76.9. All four lists unless `?status=` names one.\n\nUngated, unlike the endpoint below: this is your own backlog, and going\nprivate does not hide it from you.",
+        "operationId": "read_own_lists_api_v1_users_me_lists_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/BacklogStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return only this list instead of all four",
+              "title": "Status"
+            },
+            "description": "Return only this list instead of all four"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BacklogLists"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/username-available": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Check a handle before submitting the signup form",
+        "description": "Advisory only \u2014 registration re-checks under the unique constraint.",
+        "operationId": "check_username_api_v1_users_username_available_get",
+        "parameters": [
+          {
+            "name": "username",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Handle to check",
+              "title": "Username"
+            },
+            "description": "Handle to check"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsernameAvailability"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{username}": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "A public profile",
+        "description": "SPEC \u00a76.2, readable signed-out.\n\nA private account still returns 200 with its shell and follower counts \u2014 that\nis what a stranger needs in order to send a follow request (SPEC \u00a76.7). What\nchanges is `can_view_content`: when it is false, `stats` is null and\n`favorite_games` is empty rather than the endpoint refusing.",
+        "operationId": "read_profile_api_v1_users__username__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Public handle, case-insensitive",
+              "title": "Username"
+            },
+            "description": "Public handle, case-insensitive"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such user"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{user_id}/stats": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Profile stats",
+        "description": "SPEC \u00a76.8. Every figure is zero (and the average null) until the reviews\nand backlog slices give it something to count.",
+        "operationId": "read_stats_api_v1_users__user_id__stats_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "User id",
+              "title": "User Id"
+            },
+            "description": "User id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileStats"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Private account, viewer not approved"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{user_id}/reviews": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "This user's reviews, newest first",
+        "description": "The profile grid from SPEC \u00a76.2.\n\n`?game=` answers \"have they reviewed this?\" in one call, which is how a client\nthat just hit the one-review-per-game conflict finds the review to edit.",
+        "operationId": "read_user_reviews_api_v1_users__user_id__reviews_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "User id",
+              "title": "User Id"
+            },
+            "description": "User id"
+          },
+          {
+            "name": "game",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Narrow to this user's review of one game",
+              "title": "Game"
+            },
+            "description": "Narrow to this user's review of one game"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "From a previous page",
+              "title": "Cursor"
+            },
+            "description": "From a previous page"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Results per page",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Results per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_ReviewSummary_"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Private account, viewer not approved"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{user_id}/backlog": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "This user's backlog lists",
+        "description": "SPEC \u00a76.9: lists inherit account privacy, with no per-list toggle at MVP.\n\nSo this needs no rule of its own \u2014 `require_content_access` is the same gate\nthe reviews grid and the stats go through, which is what stops a backlog from\nbeing the one surface where a private account leaks.",
+        "operationId": "read_user_lists_api_v1_users__user_id__backlog_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "User id",
+              "title": "User Id"
+            },
+            "description": "User id"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/BacklogStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return only this list instead of all four",
+              "title": "Status"
+            },
+            "description": "Return only this list instead of all four"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BacklogLists"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Private account, viewer not approved"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{user_id}/followers": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Who follows this user",
+        "description": "Gated, unlike the count on the profile: SPEC \u00a76.7 names the follower and\nfollowing *lists* as content a private account withholds.",
+        "operationId": "read_followers_api_v1_users__user_id__followers_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "User id",
+              "title": "User Id"
+            },
+            "description": "User id"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "From a previous page",
+              "title": "Cursor"
+            },
+            "description": "From a previous page"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Results per page",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Results per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_UserPublic_"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Private account, viewer not approved"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{user_id}/following": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Who this user follows",
+        "operationId": "read_following_api_v1_users__user_id__following_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "User id",
+              "title": "User Id"
+            },
+            "description": "User id"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "From a previous page",
+              "title": "Cursor"
+            },
+            "description": "From a previous page"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Results per page",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Results per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_UserPublic_"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Private account, viewer not approved"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games": {
+      "get": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Browse the catalog",
+        "description": "Filter by genre and/or platform (SPEC \u00a76.5 Browse).\n\nRepeated values within a facet are OR-ed and the facets are AND-ed, so\n`?genre=indie&genre=puzzle&platform=nintendo-switch` reads as \"indie or\npuzzle, on Switch\".",
+        "operationId": "browse_games_api_v1_games_get",
+        "parameters": [
+          {
+            "name": "genre",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Genre slug. Repeat for any-of.",
+              "title": "Genre"
+            },
+            "description": "Genre slug. Repeat for any-of."
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Platform slug. Repeat for any-of.",
+              "title": "Platform"
+            },
+            "description": "Platform slug. Repeat for any-of."
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/GameSort",
+              "description": "Result ordering",
+              "default": "title"
+            },
+            "description": "Result ordering"
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/TrendingWindow",
+              "description": "Rolling window the ranking covers",
+              "default": "7d"
+            },
+            "description": "Rolling window the ranking covers"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "From a previous page",
+              "title": "Cursor"
+            },
+            "description": "From a previous page"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Results per page",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Results per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_GameSummary_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games/genres": {
+      "get": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Every genre in the catalog",
+        "operationId": "list_genres_api_v1_games_genres_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GenreRef"
+                  },
+                  "type": "array",
+                  "title": "Response List Genres Api V1 Games Genres Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games/platforms": {
+      "get": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Every platform",
+        "operationId": "list_platforms_api_v1_games_platforms_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlatformRef"
+                  },
+                  "type": "array",
+                  "title": "Response List Platforms Api V1 Games Platforms Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games/trending": {
+      "get": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Trending games for a rolling window",
+        "description": "Reads the ranking materialised by `python -m app.cli.trending`.\n\nEmpty until that has run against some activity \u2014 the endpoint does not fall\nback to an arbitrary list, because a made-up \"trending\" is worse than none.",
+        "operationId": "trending_games_api_v1_games_trending_get",
+        "parameters": [
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/TrendingWindow",
+              "description": "Rolling window the ranking covers",
+              "default": "7d"
+            },
+            "description": "Rolling window the ranking covers"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Results per page",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Results per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TrendingGame"
+                  },
+                  "title": "Response Trending Games Api V1 Games Trending Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games/discover": {
+      "get": {
+        "tags": [
+          "games"
+        ],
+        "summary": "The Discover tab's sections in one call",
+        "description": "One round trip for the whole tab (SPEC \u00a76.5).\n\n`recommended` is personal to the caller: their favourite genres and the\ngenres of what they rated well, blended with what the people who rate like\nthem rated well, minus everything they have already reviewed, listed or\npinned. A caller we know nothing about \u2014 signed out, or signed in and new \u2014\ngets what is trending and what has always been popular instead, so the\nsection is never an error and never a lie about being tailored.",
+        "operationId": "discover_api_v1_games_discover_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/TrendingWindow",
+              "description": "Rolling window the ranking covers",
+              "default": "7d"
+            },
+            "description": "Rolling window the ranking covers"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoverResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games/{game_id}": {
+      "get": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Full detail for one game",
+        "description": "Declared last on purpose: `/games/trending` and friends are literal paths\nthat would otherwise be swallowed by this one.",
+        "operationId": "read_game_api_v1_games__game_id__get",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Catalog id",
+              "title": "Game Id"
+            },
+            "description": "Catalog id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such game"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/search/games": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Search games by title",
+        "description": "Results carry cover art, release year and platforms, which is what SPEC\n\u00a76.6 says a result card shows.",
+        "operationId": "search_games_api_v1_search_games_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "description": "What the user typed",
+              "title": "Q"
+            },
+            "description": "What the user typed"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "From a previous page",
+              "title": "Cursor"
+            },
+            "description": "From a previous page"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Results per page",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Results per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_GameSummary_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/search/users": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Search users by handle or display name",
+        "description": "Private accounts appear as shells (SPEC \u00a76.6, \u00a76.7).\n\nThey have to be findable \u2014 otherwise nobody could send a follow request \u2014\nbut `review_count` comes back null unless the viewer is the account itself\nor an approved follower.",
+        "operationId": "search_users_api_v1_search_users_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "description": "What the user typed",
+              "title": "Q"
+            },
+            "description": "What the user typed"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "From a previous page",
+              "title": "Cursor"
+            },
+            "description": "From a previous page"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Results per page",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Results per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_UserSearchResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reviews": {
+      "post": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Review a game",
+        "description": "SPEC \u00a76.3. Media is attached afterwards, one file at a time, so the review\nexists (and is recoverable) before any upload can fail.",
+        "operationId": "create_review_api_v1_reviews_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such game in the catalog"
+          },
+          "409": {
+            "description": "You have already reviewed this game"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/reviews/{review_id}": {
+      "get": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Full review detail",
+        "description": "Readable signed-out, subject to the author's privacy (SPEC \u00a76.3, \u00a76.7).\n\n`viewer_has_liked` is false for an anonymous caller because there is nobody to\nhave liked it, not because the like state is unknown.",
+        "operationId": "read_review_api_v1_reviews__review_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Review id",
+              "title": "Review Id"
+            },
+            "description": "Review id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewDetail"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The author is private and you are not approved"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Edit your review",
+        "description": "Omitted fields are left alone; an explicit null clears the text or the\nplaytime. Editing moves `updated_at` (SPEC \u00a76.3).",
+        "operationId": "update_review_api_v1_reviews__review_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Review id",
+              "title": "Review Id"
+            },
+            "description": "Review id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewDetail"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not your review"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Delete your review",
+        "description": "Takes the attached photos and clips out of the bucket with it.",
+        "operationId": "delete_review_api_v1_reviews__review_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Review id",
+              "title": "Review Id"
+            },
+            "description": "Review id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Not your review"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reviews/{review_id}/media": {
+      "post": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Attach a photo or clip",
+        "description": "Store the file and queue it for processing (SPEC \u00a76.3).\n\nReturns immediately with `processing_status: PENDING`; the thumbnail and\ndimensions appear once the worker has run, which a client sees by re-reading\nthe review. The declared content type and filename are ignored \u2014 see\n`app.services.storage`.",
+        "operationId": "upload_media_api_v1_reviews__review_id__media_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Review id",
+              "title": "Review Id"
+            },
+            "description": "Review id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_media_api_v1_reviews__review_id__media_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewMediaItem"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Clip longer than the limit, or unreadable"
+          },
+          "403": {
+            "description": "Not your review"
+          },
+          "409": {
+            "description": "Too many items, or a second video"
+          },
+          "413": {
+            "description": "File exceeds the size limit for its kind"
+          },
+          "415": {
+            "description": "Not a format we accept"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reviews/{review_id}/media/{media_id}": {
+      "delete": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Remove a photo or clip",
+        "description": "Returns the remaining carousel, renumbered, so the client never has to\nguess what the order became.",
+        "operationId": "delete_media_api_v1_reviews__review_id__media__media_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Review id",
+              "title": "Review Id"
+            },
+            "description": "Review id"
+          },
+          {
+            "name": "media_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Media item id",
+              "title": "Media Id"
+            },
+            "description": "Media item id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewMediaItem"
+                  },
+                  "title": "Response Delete Media Api V1 Reviews  Review Id  Media  Media Id  Delete"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not your review"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/follow/requests": {
+      "get": {
+        "tags": [
+          "social"
+        ],
+        "summary": "Follow requests awaiting your approval",
+        "description": "SPEC \u00a76.7, newest first.\n\nOnly ever populated for a private account: a public one accepts follows\noutright, so it has nothing to approve. Requests the caller has *sent* are not\nhere \u2014 those show as `REQUESTED` on the profile they were sent to.",
+        "operationId": "read_follow_requests_api_v1_follow_requests_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "From a previous page",
+              "title": "Cursor"
+            },
+            "description": "From a previous page"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Results per page",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Results per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_FollowRequest_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/follow/requests/{user_id}/accept": {
+      "post": {
+        "tags": [
+          "social"
+        ],
+        "summary": "Approve a follow request",
+        "description": "Establishes the follow (SPEC \u00a76.7). From this point the requester can see\neverything the account gates \u2014 no other endpoint had to be told.",
+        "operationId": "accept_follow_request_api_v1_follow_requests__user_id__accept_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The other user's id",
+              "title": "User Id"
+            },
+            "description": "The other user's id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No pending request from that user"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/follow/requests/{user_id}/decline": {
+      "post": {
+        "tags": [
+          "social"
+        ],
+        "summary": "Reject a follow request",
+        "description": "Removes the request. The requester is not told, and may ask again.",
+        "operationId": "decline_follow_request_api_v1_follow_requests__user_id__decline_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The other user's id",
+              "title": "User Id"
+            },
+            "description": "The other user's id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No pending request from that user"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/follow/{user_id}": {
+      "post": {
+        "tags": [
+          "social"
+        ],
+        "summary": "Follow a user, or ask a private one",
+        "description": "SPEC \u00a76.7. A public account is followed immediately and a private one gets\na pending request; the response's `state` says which happened.\n\n200 rather than 201, and safe to repeat: asking again for something you\nalready have reports what you have.",
+        "operationId": "follow_user_api_v1_follow__user_id__post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The other user's id",
+              "title": "User Id"
+            },
+            "description": "The other user's id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "You cannot follow yourself"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "social"
+        ],
+        "summary": "Unfollow, or withdraw your request",
+        "description": "One verb for both, because it is one row (SPEC \u00a76.7). Succeeds even when\nthere was nothing to remove \u2014 the caller wanted to not be following.",
+        "operationId": "unfollow_user_api_v1_follow__user_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The other user's id",
+              "title": "User Id"
+            },
+            "description": "The other user's id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such user"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/followers/{user_id}": {
+      "delete": {
+        "tags": [
+          "social"
+        ],
+        "summary": "Remove one of your followers",
+        "description": "SPEC \u00a76.7. They keep seeing a public account \u2014 this only revokes the\napproval a private one granted, and stops the reviews reaching their feed.",
+        "operationId": "remove_follower_api_v1_followers__user_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The other user's id",
+              "title": "User Id"
+            },
+            "description": "The other user's id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "That user does not follow you"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reviews/{review_id}/like": {
+      "post": {
+        "tags": [
+          "interactions"
+        ],
+        "summary": "Like a review",
+        "description": "SPEC \u00a76.10. Safe to repeat: liking something you already liked reports the\ncount you already have, and does not notify the author a second time.\n\nThe response is the review's whole footer, so the button and the number it\nsits next to move together without re-reading the review.",
+        "operationId": "like_review_api_v1_reviews__review_id__like_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Review id",
+              "title": "Review Id"
+            },
+            "description": "Review id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewInteractions"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The author is private and you are not approved"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "interactions"
+        ],
+        "summary": "Take back a like",
+        "description": "Succeeds even when there was no like to remove.",
+        "operationId": "unlike_review_api_v1_reviews__review_id__like_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Review id",
+              "title": "Review Id"
+            },
+            "description": "Review id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewInteractions"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The author is private and you are not approved"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reviews/{review_id}/likes": {
+      "get": {
+        "tags": [
+          "interactions"
+        ],
+        "summary": "Who liked this review",
+        "description": "Most recent first. Public shells only \u2014 liking is not an introduction, so\nit grants no more visibility of the liker than search already does.",
+        "operationId": "read_likers_api_v1_reviews__review_id__likes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Review id",
+              "title": "Review Id"
+            },
+            "description": "Review id"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "From a previous page",
+              "title": "Cursor"
+            },
+            "description": "From a previous page"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Results per page",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Results per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_UserPublic_"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The author is private and you are not approved"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reviews/{review_id}/comments": {
+      "post": {
+        "tags": [
+          "interactions"
+        ],
+        "summary": "Comment on a review, or reply to a comment",
+        "description": "SPEC \u00a76.10. Omit `parent_comment_id` for a top-level comment; pass a\ntop-level comment's id to reply to it.",
+        "operationId": "create_comment_api_v1_reviews__review_id__comments_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Review id",
+              "title": "Review Id"
+            },
+            "description": "Review id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentItem"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Replying to a reply \u2014 SPEC \u00a76.10 allows one level"
+          },
+          "403": {
+            "description": "The author is private and you are not approved"
+          },
+          "404": {
+            "description": "No such review, or no such parent comment on it"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "interactions"
+        ],
+        "summary": "The comment thread",
+        "description": "Oldest first, because it is a conversation.\n\nThe page counts *top-level* comments: each one arrives with all of its\nreplies, so `limit=20` is twenty threads rather than twenty rows, and a\npopular comment can never push its own replies onto the next page.",
+        "operationId": "read_comments_api_v1_reviews__review_id__comments_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Review id",
+              "title": "Review Id"
+            },
+            "description": "Review id"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "From a previous page",
+              "title": "Cursor"
+            },
+            "description": "From a previous page"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Results per page",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Results per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_CommentThread_"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The author is private and you are not approved"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/comments/{comment_id}": {
+      "patch": {
+        "tags": [
+          "interactions"
+        ],
+        "summary": "Edit your comment",
+        "description": "Moves `updated_at`, which is what `edited` on the response reads from.",
+        "operationId": "update_comment_api_v1_comments__comment_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Comment id",
+              "title": "Comment Id"
+            },
+            "description": "Comment id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentItem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not your comment"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "interactions"
+        ],
+        "summary": "Delete your comment",
+        "description": "Deleting a top-level comment takes its replies with it.",
+        "operationId": "delete_comment_api_v1_comments__comment_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Comment id",
+              "title": "Comment Id"
+            },
+            "description": "Comment id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Not your comment"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/backlog/order": {
+      "put": {
+        "tags": [
+          "backlog"
+        ],
+        "summary": "Reorder one of your lists",
+        "description": "SPEC \u00a76.9. The body must name exactly the games currently on that list.\n\nReturns the list it rewrote, so the client renders the order the server\nactually stored rather than the one it hoped for.",
+        "operationId": "reorder_list_api_v1_backlog_order_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BacklogReorder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BacklogList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a permutation of that list"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/backlog/{game_id}": {
+      "put": {
+        "tags": [
+          "backlog"
+        ],
+        "summary": "Put a game on a list, or move it to another one",
+        "description": "SPEC \u00a76.9, an upsert.\n\nPUT rather than POST because it is idempotent and the caller names the id:\nsending the same status twice leaves one row in one place, and \u2014 because\n`status_changed_at` does not move for a no-op \u2014 does not tell the owner's\nfollowers about it twice either.",
+        "operationId": "set_backlog_status_api_v1_backlog__game_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Catalog id of the game",
+              "title": "Game Id"
+            },
+            "description": "Catalog id of the game"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BacklogStatusUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BacklogEntry"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such game in the catalog"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "backlog"
+        ],
+        "summary": "Take a game off your backlog",
+        "operationId": "remove_from_backlog_api_v1_backlog__game_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Catalog id of the game",
+              "title": "Game Id"
+            },
+            "description": "Catalog id of the game"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "That game is on none of your lists"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feed": {
+      "get": {
+        "tags": [
+          "feed"
+        ],
+        "summary": "Reviews and activity from the accounts you follow",
+        "description": "SPEC \u00a76.4, newest first.\n\nItems are a discriminated union \u2014 **branch on `type`**. A `review` carries\nthe whole review, rating and media and live like and comment counts included,\nso a row is interactive on arrival and tapping through to the detail page\ntells the client nothing new. A `backlog_activity` is the lighter-weight line\nSPEC \u00a76.11 blends inline: who moved which game to which list. A\n`recommended_review` is SPEC \u00a76.4's blend \u2014 a review the caller does *not*\nfollow the author of, carrying a `reason` for why it is here. Label it as\nsuch: it is in the union as its own type precisely so it cannot be rendered\nas though somebody they follow wrote it.\n\nThere is no separate `GET /activity`, on purpose. SPEC \u00a76.4 is explicit that\nHome is unified and that there is no Activity tab, so a second endpoint would\nbe a second thing to keep ordered against this one.\n\nAn empty page is the normal state for a new account rather than an error; the\nclient fills it from `/feed/suggestions`. Nothing is blended into an empty\nfeed \u2014 a caller who follows nobody gets the empty state SPEC \u00a76.4 describes,\nnot a page of recommendations dressed up as one.",
+        "operationId": "read_feed_api_v1_feed_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "From a previous page",
+              "title": "Cursor"
+            },
+            "description": "From a previous page"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Results per page",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Results per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_Annotated_Union_FeedReviewItem__FeedActivityItem__FeedRecommendedItem___FieldInfo_annotation_NoneType__required_True__discriminator__type____"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feed/suggestions": {
+      "get": {
+        "tags": [
+          "feed"
+        ],
+        "summary": "What to show when the feed is empty",
+        "description": "The empty state from SPEC \u00a76.4: somewhere to go when nobody is followed.\n\nA separate call rather than a field on the feed page, so the request that\nevery scroll makes does not also carry a section that is only ever read once.",
+        "operationId": "read_suggestions_api_v1_feed_suggestions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedSuggestions"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Your notifications, newest first",
+        "description": "SPEC \u00a76.12. Read and unread in one list, with `is_read` on each row.\n\nNot two endpoints and not a `?unread=` filter: the tab shows a history in\nwhich the unread ones are highlighted, and reading it does not mark anything\n\u2014 that is `POST /notifications/read`, so the client decides whether opening\nthe tab counts as reading everything in it.\n\nEach row arrives with its actor and its target already attached, so a page is\na fixed number of queries however many rows it holds.",
+        "operationId": "read_notifications_api_v1_notifications_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "From a previous page",
+              "title": "Cursor"
+            },
+            "description": "From a previous page"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Results per page",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Results per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_NotificationItem_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/unread-count": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "How many are unread",
+        "description": "The badge on the tab (SPEC \u00a76.12).\n\nSeparate from the list because it is polled from every screen and the list is\nnot. Delivery in this slice is in-app only \u2014 no websocket, no push \u2014 so the\nbadge is only ever as fresh as the last poll, which is the trade SPEC \u00a76.12\nmakes by naming push as post-MVP.",
+        "operationId": "read_unread_count_api_v1_notifications_unread_count_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCount"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/notifications/read": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Mark notifications read",
+        "description": "SPEC \u00a76.12's mark-as-read, individually or all at once.\n\nOne endpoint for both because they are one statement with one extra WHERE.\nAlways a 200: ids that are already read, do not exist, or belong to somebody\nelse are counted as zero rather than refused, so a client that presses the\nbutton twice does not get an error the second time, and nobody learns whether\na notification id they guessed is real.",
+        "operationId": "mark_notifications_read_api_v1_notifications_read_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationReadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationReadResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Liveness probe",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AuthSession": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token"
+          },
+          "token_type": {
+            "type": "string",
+            "const": "bearer",
+            "title": "Token Type",
+            "default": "bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "Access token lifetime in seconds"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserMe"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "refresh_token",
+          "expires_in",
+          "user"
+        ],
+        "title": "AuthSession",
+        "description": "What register / login / refresh return: tokens plus the signed-in user."
+      },
+      "BacklogEntry": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "game": {
+            "$ref": "#/components/schemas/GameSummary"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BacklogStatus"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position",
+            "description": "0-based, dense within the status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "When the game first joined the backlog"
+          },
+          "status_changed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Status Changed At",
+            "description": "When it last moved lists. This is what the Home feed's activity events are ordered by (SPEC \u00a76.11)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "game",
+          "status",
+          "position",
+          "created_at",
+          "status_changed_at"
+        ],
+        "title": "BacklogEntry",
+        "description": "One game on one of the four lists."
+      },
+      "BacklogList": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/BacklogStatus"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BacklogEntry"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "items"
+        ],
+        "title": "BacklogList",
+        "description": "One status and everything on it, in the owner's order."
+      },
+      "BacklogLists": {
+        "properties": {
+          "lists": {
+            "items": {
+              "$ref": "#/components/schemas/BacklogList"
+            },
+            "type": "array",
+            "title": "Lists",
+            "description": "All four statuses in SPEC \u00a76.9's order unless one was asked for by name, in which case exactly that one."
+          }
+        },
+        "type": "object",
+        "required": [
+          "lists"
+        ],
+        "title": "BacklogLists",
+        "description": "A whole backlog, or the single list a `?status=` narrowed it to."
+      },
+      "BacklogReorder": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/BacklogStatus",
+            "description": "Which list is being reordered"
+          },
+          "game_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Game Ids",
+            "description": "Every game currently on that list, in the new order"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "game_ids"
+        ],
+        "title": "BacklogReorder",
+        "description": "A permutation of one list \u2014 see `InvalidBacklogOrderError`."
+      },
+      "BacklogStatus": {
+        "type": "string",
+        "enum": [
+          "TO_BE_PLAYED",
+          "PLAYING",
+          "COMPLETED",
+          "DROPPED"
+        ],
+        "title": "BacklogStatus"
+      },
+      "BacklogStatusUpdate": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/BacklogStatus"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "BacklogStatusUpdate",
+        "description": "The body of `PUT /backlog/{game_id}` \u2014 where the game should end up.\n\nOne field, because that is the whole operation: SPEC \u00a76.9 says a game holds\nat most one status, so setting it is both \"add to a list\" and \"move between\nlists\" and the caller does not have to know which one they are doing."
+      },
+      "Body_upload_avatar_api_v1_users_me_avatar_put": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "JPEG, PNG or WebP"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_avatar_api_v1_users_me_avatar_put"
+      },
+      "Body_upload_media_api_v1_reviews__review_id__media_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "JPEG, PNG, WebP, GIF, MP4 or MOV"
+          },
+          "alt_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt Text",
+            "description": "Describes the image for screen readers (SPEC \u00a79)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_media_api_v1_reviews__review_id__media_post"
+      },
+      "CommentCreate": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "parent_comment_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Comment Id",
+            "description": "Reply to this comment. It must be a top-level comment on the same review (SPEC \u00a76.10 allows one level of threading)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "CommentCreate",
+        "description": "POST /reviews/{id}/comments."
+      },
+      "CommentItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "review_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Review Id"
+          },
+          "author": {
+            "$ref": "#/components/schemas/UserPublic"
+          },
+          "parent_comment_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Comment Id",
+            "description": "The top-level comment this answers, or null when it is one"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "edited": {
+            "type": "boolean",
+            "title": "Edited",
+            "description": "Whether the text has been changed since it was posted.\n\nDerived here rather than left to the client: both timestamps are set from\nthe same statement on insert, so the comparison is exact, and four clients\neach deciding how much clock skew counts as \"edited\" would not be.",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "review_id",
+          "author",
+          "parent_comment_id",
+          "text",
+          "created_at",
+          "updated_at",
+          "edited"
+        ],
+        "title": "CommentItem",
+        "description": "One comment, top-level or reply (SPEC \u00a76.10)."
+      },
+      "CommentThread": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "review_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Review Id"
+          },
+          "author": {
+            "$ref": "#/components/schemas/UserPublic"
+          },
+          "parent_comment_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Comment Id",
+            "description": "The top-level comment this answers, or null when it is one"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "replies": {
+            "items": {
+              "$ref": "#/components/schemas/CommentItem"
+            },
+            "type": "array",
+            "title": "Replies"
+          },
+          "edited": {
+            "type": "boolean",
+            "title": "Edited",
+            "description": "Whether the text has been changed since it was posted.\n\nDerived here rather than left to the client: both timestamps are set from\nthe same statement on insert, so the comparison is exact, and four clients\neach deciding how much clock skew counts as \"edited\" would not be.",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "review_id",
+          "author",
+          "parent_comment_id",
+          "text",
+          "created_at",
+          "updated_at",
+          "replies",
+          "edited"
+        ],
+        "title": "CommentThread",
+        "description": "A top-level comment with the replies underneath it.\n\nOne level deep and no cursor on `replies`: SPEC \u00a76.10 caps threading at a\nsingle level, so this is the whole subtree rather than the first page of it."
+      },
+      "CommentUpdate": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "CommentUpdate",
+        "description": "PATCH /comments/{id}. Text is the only thing a comment has to change."
+      },
+      "CursorPage_Annotated_Union_FeedReviewItem__FeedActivityItem__FeedRecommendedItem___FieldInfo_annotation_NoneType__required_True__discriminator__type____": {
+        "properties": {
+          "items": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/FeedReviewItem"
+                },
+                {
+                  "$ref": "#/components/schemas/FeedActivityItem"
+                },
+                {
+                  "$ref": "#/components/schemas/FeedRecommendedItem"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "backlog_activity": "#/components/schemas/FeedActivityItem",
+                  "recommended_review": "#/components/schemas/FeedRecommendedItem",
+                  "review": "#/components/schemas/FeedReviewItem"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Pass as ?cursor= for the next page; null when exhausted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CursorPage[Annotated[Union[FeedReviewItem, FeedActivityItem, FeedRecommendedItem], FieldInfo(annotation=NoneType, required=True, discriminator='type')]]"
+      },
+      "CursorPage_CommentThread_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CommentThread"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Pass as ?cursor= for the next page; null when exhausted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CursorPage[CommentThread]"
+      },
+      "CursorPage_FollowRequest_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FollowRequest"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Pass as ?cursor= for the next page; null when exhausted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CursorPage[FollowRequest]"
+      },
+      "CursorPage_GameSummary_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GameSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Pass as ?cursor= for the next page; null when exhausted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CursorPage[GameSummary]"
+      },
+      "CursorPage_NotificationItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NotificationItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Pass as ?cursor= for the next page; null when exhausted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CursorPage[NotificationItem]"
+      },
+      "CursorPage_ReviewSummary_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Pass as ?cursor= for the next page; null when exhausted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CursorPage[ReviewSummary]"
+      },
+      "CursorPage_UserPublic_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UserPublic"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Pass as ?cursor= for the next page; null when exhausted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CursorPage[UserPublic]"
+      },
+      "CursorPage_UserSearchResult_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UserSearchResult"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Pass as ?cursor= for the next page; null when exhausted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CursorPage[UserSearchResult]"
+      },
+      "DiscoverResponse": {
+        "properties": {
+          "trending": {
+            "items": {
+              "$ref": "#/components/schemas/TrendingGame"
+            },
+            "type": "array",
+            "title": "Trending"
+          },
+          "new_releases": {
+            "items": {
+              "$ref": "#/components/schemas/GameSummary"
+            },
+            "type": "array",
+            "title": "New Releases"
+          },
+          "recommended": {
+            "items": {
+              "$ref": "#/components/schemas/GameSummary"
+            },
+            "type": "array",
+            "title": "Recommended",
+            "description": "Personalised for the caller, or trending and popular all-time for a caller with no ratings, favorites or session."
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/GenreRef"
+            },
+            "type": "array",
+            "title": "Genres"
+          },
+          "platforms": {
+            "items": {
+              "$ref": "#/components/schemas/PlatformRef"
+            },
+            "type": "array",
+            "title": "Platforms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trending",
+          "new_releases",
+          "recommended",
+          "genres",
+          "platforms"
+        ],
+        "title": "DiscoverResponse",
+        "description": "The Discover tab's first paint (SPEC \u00a76.5).\n\nEvery section is a plain list of cards, `recommended` included: the ranking\nthat produced it is the server's business, and a score on the wire is a\nnumber a client would be tempted to show. See `app.services.recommendations`\nfor how the order is arrived at."
+      },
+      "FavoriteCreate": {
+        "properties": {
+          "game_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Game Id",
+            "description": "Catalog id; the game must already exist"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "game_id"
+        ],
+        "title": "FavoriteCreate"
+      },
+      "FavoriteGameEntry": {
+        "properties": {
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "game": {
+            "$ref": "#/components/schemas/GameSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "position",
+          "game"
+        ],
+        "title": "FavoriteGameEntry",
+        "description": "A pinned game plus where it sits in the curated order (SPEC \u00a76.2)."
+      },
+      "FavoriteReorder": {
+        "properties": {
+          "game_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Game Ids",
+            "description": "Every current favorite, in the new order"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "game_ids"
+        ],
+        "title": "FavoriteReorder",
+        "description": "A permutation of the current favorites \u2014 see `InvalidFavoriteOrderError`."
+      },
+      "FeedActivityItem": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "backlog_activity",
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "The backlog item's id. Unique per `type`."
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At",
+            "description": "When the status changed, newest first"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/UserPublic",
+            "description": "Whose list moved"
+          },
+          "game": {
+            "$ref": "#/components/schemas/GameSummary"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BacklogStatus",
+            "description": "The list the game is on now"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "occurred_at",
+          "actor",
+          "game",
+          "status"
+        ],
+        "title": "FeedActivityItem",
+        "description": "Someone you follow moved a game between backlog lists (SPEC \u00a76.11).\n\nThe lightweight half of the unified Home from SPEC \u00a76.4 \u2014 \"Alex added *Elden\nRing* to Playing\", \"Sam completed *Hades*\" \u2014 which exists so Home still has a\npulse on a day when nobody you follow wrote a review. Reviews stay the hero\ncontent; this is a line, not a card.\n\nOnly the *current* status is here, not what it moved from. The event is\nderived from the backlog row itself rather than from an events table, and\nthat row remembers where a game is, not the route it took. \"Completed\n*Hades*\" is the whole of what SPEC \u00a76.11 asks for, and inventing a `from`\nfield the data cannot back would be worse than not having one."
+      },
+      "FeedRecommendedItem": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "recommended_review",
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "The review's id. Unique per `type`."
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At",
+            "description": "When the review was written, newest first"
+          },
+          "review": {
+            "$ref": "#/components/schemas/ReviewSummary"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/RecommendationReason",
+            "description": "What put this in front of the reader"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "occurred_at",
+          "review",
+          "reason"
+        ],
+        "title": "FeedRecommendedItem",
+        "description": "A review from outside the follow graph, blended in (SPEC \u00a76.4).\n\nIts own member of the union rather than a `recommended: bool` on\n`FeedReviewItem`, because SPEC \u00a76.4 requires the blend to be \"clearly\ndistinguishable from pure follow feed\" and a flag is exactly the thing a\nclient forgets to read. A type it has to branch on cannot be missed, and the\nbranch is where the label and the \"why\" go.\n\nThe payload is the identical `ReviewSummary`, so a recommended row is as\ninteractive as any other \u2014 likeable, commentable, and by an author the reader\ncan follow on the spot. Nothing about the review is different; only how it\ngot here."
+      },
+      "FeedReviewItem": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "review",
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "The item's id \u2014 the review's, for this kind. Unique per `type`."
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At",
+            "description": "What the feed is ordered by, newest first"
+          },
+          "review": {
+            "$ref": "#/components/schemas/ReviewSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "occurred_at",
+          "review"
+        ],
+        "title": "FeedReviewItem",
+        "description": "A review from someone the viewer follows \u2014 the hero content of SPEC \u00a76.4.\n\nThe review is the full `ReviewSummary` every other surface returns, counters\nincluded, so a feed row renders a live like button and comment count without\na second request per item."
+      },
+      "FeedSuggestions": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/UserPublic"
+            },
+            "type": "array",
+            "title": "Accounts",
+            "description": "Public accounts worth following, most-followed first, excluding anyone the viewer already follows or has asked to."
+          },
+          "trending": {
+            "items": {
+              "$ref": "#/components/schemas/TrendingGame"
+            },
+            "type": "array",
+            "title": "Trending",
+            "description": "The materialised ranking from SPEC \u00a76.11. Empty until the trending job has run against some activity."
+          }
+        },
+        "type": "object",
+        "required": [
+          "accounts",
+          "trending"
+        ],
+        "title": "FeedSuggestions",
+        "description": "What Home shows instead of a feed when there is nothing to show.\n\nSPEC \u00a76.4 asks for suggested accounts and trending content for a viewer who\nfollows nobody. Both sections are deliberately small: this is a prompt to go\nand follow someone, not a second Discover tab."
+      },
+      "FollowRequest": {
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/UserPublic"
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Requested At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user",
+          "requested_at"
+        ],
+        "title": "FollowRequest",
+        "description": "A pending request the signed-in user has received (SPEC \u00a76.7).\n\nOnly the requester's public shell: they are asking for access to gated\ncontent precisely because they do not have it yet, so the decision is made on\nthe handle, name and picture alone."
+      },
+      "FollowResult": {
+        "properties": {
+          "follower_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Follower Id"
+          },
+          "followee_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Followee Id"
+          },
+          "state": {
+            "$ref": "#/components/schemas/FollowState"
+          },
+          "follower_count": {
+            "type": "integer",
+            "title": "Follower Count",
+            "description": "How many followers the followee has now"
+          }
+        },
+        "type": "object",
+        "required": [
+          "follower_id",
+          "followee_id",
+          "state",
+          "follower_count"
+        ],
+        "title": "FollowResult",
+        "description": "One directed edge as it stands after an action.\n\nEvery mutating endpoint returns this, including the ones that removed the\nedge \u2014 a Follow button has to render *something* afterwards, and a `state` of\nNONE says what without a second request. `follower_count` is the number\nbeside that button, so it moves in the same response that moved it."
+      },
+      "FollowState": {
+        "type": "string",
+        "enum": [
+          "NONE",
+          "REQUESTED",
+          "FOLLOWING"
+        ],
+        "title": "FollowState",
+        "description": "One viewer's standing with another account, as a Follow button shows it.\n\nDerived, never stored: `NONE` is the absence of a `Follow` row and the other\ntwo are that row's `FollowStatus`. It lives beside the status it flattens so\nthe mapping is readable in one place \u2014 nothing persists this, so it needs no\nenum type in the database and no migration."
+      },
+      "GameDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Url"
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          },
+          "platforms": {
+            "items": {
+              "$ref": "#/components/schemas/PlatformRef"
+            },
+            "type": "array",
+            "title": "Platforms"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/GenreRef"
+            },
+            "type": "array",
+            "title": "Genres"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          },
+          "external_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Source"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "release_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Year",
+            "description": "Precomputed so every client renders the same year for a given date.",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "cover_url",
+          "release_date",
+          "platforms",
+          "summary",
+          "genres",
+          "external_id",
+          "external_source",
+          "created_at",
+          "release_year"
+        ],
+        "title": "GameDetail",
+        "description": "Everything the Game Detail screen needs (SPEC \u00a75)."
+      },
+      "GameSort": {
+        "type": "string",
+        "enum": [
+          "title",
+          "release_date",
+          "trending"
+        ],
+        "title": "GameSort",
+        "description": "Orderings offered by `GET /games` (SPEC \u00a76.5 Browse)."
+      },
+      "GameSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Url"
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          },
+          "platforms": {
+            "items": {
+              "$ref": "#/components/schemas/PlatformRef"
+            },
+            "type": "array",
+            "title": "Platforms"
+          },
+          "release_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Year",
+            "description": "Precomputed so every client renders the same year for a given date.",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "cover_url",
+          "release_date",
+          "platforms",
+          "release_year"
+        ],
+        "title": "GameSummary",
+        "description": "The card shape used by browse and search results.\n\nDeliberately narrow: SPEC \u00a76.6 asks for cover art, release year and platform\non a result, and shipping the long `summary` text in a 20-item page would be\nmost of the payload for something no card renders."
+      },
+      "GenreRef": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "slug"
+        ],
+        "title": "GenreRef"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "LoginRequest": {
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "maxLength": 320,
+            "minLength": 1,
+            "title": "Identifier",
+            "description": "Email address or username"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "identifier",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "description": "SPEC \u00a76.1 allows signing in with either the email or the username."
+      },
+      "LogoutRequest": {
+        "properties": {
+          "refresh_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Token"
+          },
+          "all_sessions": {
+            "type": "boolean",
+            "title": "All Sessions",
+            "description": "Revoke every refresh token for this user, not just this one.",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "LogoutRequest"
+      },
+      "MediaType": {
+        "type": "string",
+        "enum": [
+          "IMAGE",
+          "VIDEO"
+        ],
+        "title": "MediaType"
+      },
+      "MessageResponse": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "MessageResponse"
+      },
+      "NotificationCommentTarget": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "review_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Review Id",
+            "description": "Where the comment lives \u2014 the link target"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "review_id",
+          "text"
+        ],
+        "title": "NotificationCommentTarget",
+        "description": "The comment a notification is about (SPEC \u00a76.10, \u00a76.12).\n\n`text` is the whole comment rather than a snippet: SPEC \u00a76.10 caps a comment\nat 500 characters, so the \"excerpt\" a list row wants is a substring of\nsomething already small, and cutting it here would only mean deciding on the\nserver how many characters a client's row happens to fit."
+      },
+      "NotificationItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "type": {
+            "$ref": "#/components/schemas/NotificationType",
+            "description": "What happened; the client turns it into a sentence"
+          },
+          "actor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserPublic"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who did it. Null only for a notification the system raised rather than a person, which nothing produces yet."
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NotificationReviewTarget"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set for likes, comments, replies and backlog-game-reviewed"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NotificationCommentTarget"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set for comments and replies; the review it belongs to is on `review`"
+          },
+          "is_read": {
+            "type": "boolean",
+            "title": "Is Read"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "actor",
+          "review",
+          "comment",
+          "is_read",
+          "created_at"
+        ],
+        "title": "NotificationItem",
+        "description": "One row of the Notifications tab (SPEC \u00a76.12)."
+      },
+      "NotificationReadRequest": {
+        "properties": {
+          "ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ids",
+            "description": "Notifications to mark read; null or absent means all of them"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "NotificationReadRequest",
+        "description": "POST /notifications/read.\n\nOmit `ids` \u2014 or send null \u2014 to mark the whole inbox read, which is SPEC\n\u00a76.12's \"mark all\". An explicitly *empty* list marks nothing, on purpose: a\nclient that meant \"mark these\" and computed an empty selection should get a\nno-op rather than silently clear the badge."
+      },
+      "NotificationReadResult": {
+        "properties": {
+          "marked": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Marked",
+            "description": "How many rows went from unread to read"
+          },
+          "unread_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Unread Count",
+            "description": "What is still unread afterwards"
+          }
+        },
+        "type": "object",
+        "required": [
+          "marked",
+          "unread_count"
+        ],
+        "title": "NotificationReadResult",
+        "description": "What changed, and what the badge should say now.\n\nBoth numbers, so pressing \"mark all read\" is one round trip rather than a\nwrite followed by a re-read of the count it just changed."
+      },
+      "NotificationReviewTarget": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "game": {
+            "$ref": "#/components/schemas/GameSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "game"
+        ],
+        "title": "NotificationReviewTarget",
+        "description": "The review a notification is about, as its sentence needs it.\n\nThe game and nothing else: every sentence that carries a review names it by\nthe game \u2014 \"your review of *Hades*\" \u2014 and the review's own author is the\nrecipient on every type that has one, so sending it back would be telling\nthem who they are."
+      },
+      "NotificationType": {
+        "type": "string",
+        "enum": [
+          "NEW_FOLLOWER",
+          "FOLLOW_REQUEST",
+          "FOLLOW_REQUEST_APPROVED",
+          "REVIEW_LIKED",
+          "REVIEW_COMMENTED",
+          "COMMENT_REPLIED",
+          "BACKLOG_GAME_REVIEWED"
+        ],
+        "title": "NotificationType"
+      },
+      "PasswordResetConfirm": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 16,
+            "title": "Token"
+          },
+          "new_password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "New Password"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "token",
+          "new_password"
+        ],
+        "title": "PasswordResetConfirm"
+      },
+      "PasswordResetRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "PasswordResetRequest"
+      },
+      "PlatformRef": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "slug"
+        ],
+        "title": "PlatformRef"
+      },
+      "ProcessingStatus": {
+        "type": "string",
+        "enum": [
+          "PENDING",
+          "PROCESSING",
+          "READY",
+          "FAILED"
+        ],
+        "title": "ProcessingStatus"
+      },
+      "ProfileStats": {
+        "properties": {
+          "games_reviewed": {
+            "type": "integer",
+            "title": "Games Reviewed"
+          },
+          "review_count": {
+            "type": "integer",
+            "title": "Review Count"
+          },
+          "average_rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Rating",
+            "description": "Mean rating given, on the 1-10 scale. Null when nothing is rated."
+          },
+          "total_playtime_minutes": {
+            "type": "integer",
+            "title": "Total Playtime Minutes",
+            "description": "Summed over reviews that recorded playtime"
+          },
+          "completed_count": {
+            "type": "integer",
+            "title": "Completed Count",
+            "description": "Backlog items marked COMPLETED"
+          },
+          "backlog_count": {
+            "type": "integer",
+            "title": "Backlog Count",
+            "description": "Backlog items still on the To Be Played list"
+          },
+          "rating_distribution": {
+            "items": {
+              "$ref": "#/components/schemas/RatingBucket"
+            },
+            "type": "array",
+            "title": "Rating Distribution",
+            "description": "Always 1-10 inclusive, zero-filled, so a client can draw the axis blind."
+          },
+          "member_since": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Member Since"
+          }
+        },
+        "type": "object",
+        "required": [
+          "games_reviewed",
+          "review_count",
+          "total_playtime_minutes",
+          "completed_count",
+          "backlog_count",
+          "rating_distribution",
+          "member_since"
+        ],
+        "title": "ProfileStats",
+        "description": "Light gamification only \u2014 SPEC \u00a76.8 rules out leaderboards and points.\n\nEvery count is zero and `average_rating` is null on an account with no\nactivity: an average of nothing is not 0.0, and saying it is would draw a bar\nchart implying the user rates everything terribly."
+      },
+      "RatingBucket": {
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "title": "Rating",
+            "description": "1-10, where 10 is five stars"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rating",
+          "count"
+        ],
+        "title": "RatingBucket",
+        "description": "One bar of the rating distribution chart (SPEC \u00a76.8)."
+      },
+      "RecommendationReason": {
+        "type": "string",
+        "enum": [
+          "recommended_game",
+          "suggested_account"
+        ],
+        "title": "RecommendationReason",
+        "description": "Why a recommended item is in front of you (SPEC \u00a76.4, \u00a76.5).\n\nSPEC \u00a76.4 asks for the blend to be \"clearly distinguishable from pure follow\nfeed\", and a separate `type` is what makes it distinguishable. This is the\nnext question a reader asks once they have noticed \u2014 *why this?* \u2014 and it is\na closed set rather than a sentence because the client writes the sentence\nand can translate it."
+      },
+      "RefreshRequest": {
+        "properties": {
+          "refresh_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Token",
+            "description": "Native clients send the refresh token here. The web client omits it and relies on the httpOnly cookie set at login."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RefreshRequest"
+      },
+      "RegisterRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 3,
+            "title": "Username",
+            "description": "Unique public handle"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "Unique, private"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "username",
+          "email",
+          "password"
+        ],
+        "title": "RegisterRequest"
+      },
+      "ReviewCreate": {
+        "properties": {
+          "game_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Game Id",
+            "description": "Catalog id; the game must already exist"
+          },
+          "rating": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Rating",
+            "description": "Half-star stops on a five-star scale, stored 1-10 (SPEC \u00a76.3)"
+          },
+          "review_text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Text"
+          },
+          "playtime_minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0,
+                "description": "Minutes the author says they played, if they tracked it"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Playtime Minutes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "game_id",
+          "rating"
+        ],
+        "title": "ReviewCreate",
+        "description": "POST /reviews. One per game \u2014 see `ReviewAlreadyExistsError`."
+      },
+      "ReviewDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "author": {
+            "$ref": "#/components/schemas/UserPublic"
+          },
+          "game": {
+            "$ref": "#/components/schemas/GameSummary"
+          },
+          "rating": {
+            "type": "integer",
+            "title": "Rating"
+          },
+          "review_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Text"
+          },
+          "playtime_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Playtime Minutes"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "like_count": {
+            "type": "integer",
+            "title": "Like Count"
+          },
+          "comment_count": {
+            "type": "integer",
+            "title": "Comment Count"
+          },
+          "viewer_has_liked": {
+            "type": "boolean",
+            "title": "Viewer Has Liked",
+            "description": "Whether the caller has liked this. Always false when signed out."
+          },
+          "media_count": {
+            "type": "integer",
+            "title": "Media Count"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url",
+            "description": "What the profile grid tiles with: the first media thumbnail, falling back to the game's cover art (SPEC \u00a76.2)."
+          },
+          "media": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewMediaItem"
+            },
+            "type": "array",
+            "title": "Media"
+          },
+          "stars": {
+            "type": "number",
+            "title": "Stars",
+            "description": "The 0.5-5.0 value from SPEC \u00a76.3. Derived so clients cannot drift.",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "author",
+          "game",
+          "rating",
+          "review_text",
+          "playtime_minutes",
+          "created_at",
+          "updated_at",
+          "like_count",
+          "comment_count",
+          "viewer_has_liked",
+          "media_count",
+          "thumbnail_url",
+          "media",
+          "stars"
+        ],
+        "title": "ReviewDetail",
+        "description": "Everything the Review Detail screen needs, carousel included (SPEC \u00a76.3)."
+      },
+      "ReviewInteractions": {
+        "properties": {
+          "review_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Review Id"
+          },
+          "like_count": {
+            "type": "integer",
+            "title": "Like Count"
+          },
+          "comment_count": {
+            "type": "integer",
+            "title": "Comment Count"
+          },
+          "viewer_has_liked": {
+            "type": "boolean",
+            "title": "Viewer Has Liked",
+            "description": "Whether the caller has liked this review"
+          }
+        },
+        "type": "object",
+        "required": [
+          "review_id",
+          "like_count",
+          "comment_count",
+          "viewer_has_liked"
+        ],
+        "title": "ReviewInteractions",
+        "description": "A review's counters after a like or an unlike.\n\nCarries `comment_count` as well, so one type describes the whole footer of a\nreview rather than the half this endpoint happened to touch \u2014 a client that\nrenders both from one object cannot end up showing two different reviews'\nnumbers side by side."
+      },
+      "ReviewMediaItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "type": {
+            "$ref": "#/components/schemas/MediaType"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
+          "alt_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt Text",
+            "description": "Author-supplied description (SPEC \u00a79 accessibility)"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "processing_status": {
+            "$ref": "#/components/schemas/ProcessingStatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "url",
+          "thumbnail_url",
+          "width",
+          "height",
+          "duration_seconds",
+          "alt_text",
+          "position",
+          "processing_status"
+        ],
+        "title": "ReviewMediaItem",
+        "description": "One slot in the carousel (SPEC \u00a76.3).\n\n`processing_status` is what a client polls: an item arrives PENDING with only\nits original URL, and gains `thumbnail_url` and dimensions when it reaches\nREADY. Video never gains a thumbnail in this slice \u2014 see\n`app.services.media._process_video` \u2014 so clients fall back to the game's cover\nart in grid surfaces rather than waiting for one."
+      },
+      "ReviewSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "author": {
+            "$ref": "#/components/schemas/UserPublic"
+          },
+          "game": {
+            "$ref": "#/components/schemas/GameSummary"
+          },
+          "rating": {
+            "type": "integer",
+            "title": "Rating"
+          },
+          "review_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Text"
+          },
+          "playtime_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Playtime Minutes"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "like_count": {
+            "type": "integer",
+            "title": "Like Count"
+          },
+          "comment_count": {
+            "type": "integer",
+            "title": "Comment Count"
+          },
+          "viewer_has_liked": {
+            "type": "boolean",
+            "title": "Viewer Has Liked",
+            "description": "Whether the caller has liked this. Always false when signed out."
+          },
+          "media_count": {
+            "type": "integer",
+            "title": "Media Count"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url",
+            "description": "What the profile grid tiles with: the first media thumbnail, falling back to the game's cover art (SPEC \u00a76.2)."
+          },
+          "stars": {
+            "type": "number",
+            "title": "Stars",
+            "description": "The 0.5-5.0 value from SPEC \u00a76.3. Derived so clients cannot drift.",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "author",
+          "game",
+          "rating",
+          "review_text",
+          "playtime_minutes",
+          "created_at",
+          "updated_at",
+          "like_count",
+          "comment_count",
+          "viewer_has_liked",
+          "media_count",
+          "thumbnail_url",
+          "stars"
+        ],
+        "title": "ReviewSummary",
+        "description": "A review as a feed row or a grid tile shows it.\n\nNo `from_attributes`: the counters are not columns, so this is assembled from\na `ReviewWithStats` rather than validated straight off the model."
+      },
+      "ReviewUpdate": {
+        "properties": {
+          "rating": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10.0,
+                "minimum": 1.0,
+                "description": "Half-star stops on a five-star scale, stored 1-10 (SPEC \u00a76.3)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "review_text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Text"
+          },
+          "playtime_minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0,
+                "description": "Minutes the author says they played, if they tracked it"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Playtime Minutes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ReviewUpdate",
+        "description": "PATCH /reviews/{id}, with the same semantics as `UserUpdate`.\n\nAn omitted key is left alone and an explicit null clears the column, which is\nhow a user deletes the text of a review without deleting the rating with it.\nThe game is deliberately absent: see `app.services.reviews.update_review`."
+      },
+      "TrendingGame": {
+        "properties": {
+          "game": {
+            "$ref": "#/components/schemas/GameSummary"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "window": {
+            "$ref": "#/components/schemas/TrendingWindow",
+            "description": "Rolling window the score was computed over"
+          }
+        },
+        "type": "object",
+        "required": [
+          "game",
+          "score",
+          "window"
+        ],
+        "title": "TrendingGame",
+        "description": "A trending entry: the card plus the score that ranked it (SPEC \u00a76.11)."
+      },
+      "TrendingWindow": {
+        "type": "string",
+        "enum": [
+          "24h",
+          "7d",
+          "30d"
+        ],
+        "title": "TrendingWindow",
+        "description": "Rolling windows the trending worker computes (SPEC \u00a76.11).\n\nClosed set rather than free text so a typo can't quietly return an empty\nranking; the durations live in `app.services.trending.TRENDING_WINDOWS`."
+      },
+      "UnreadCount": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Count",
+            "description": "Unread notifications for the caller"
+          }
+        },
+        "type": "object",
+        "required": [
+          "count"
+        ],
+        "title": "UnreadCount",
+        "description": "What the badge on the Notifications tab shows (SPEC \u00a76.12)."
+      },
+      "UserMe": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "bio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bio"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "is_private": {
+            "type": "boolean",
+            "title": "Is Private"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "email_verified_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email Verified At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "display_name",
+          "bio",
+          "avatar_url",
+          "is_private",
+          "created_at",
+          "email",
+          "email_verified_at"
+        ],
+        "title": "UserMe",
+        "description": "The authenticated user's own record \u2014 adds fields that are private to them."
+      },
+      "UserProfile": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "bio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bio"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "is_private": {
+            "type": "boolean",
+            "title": "Is Private"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "follower_count": {
+            "type": "integer",
+            "title": "Follower Count"
+          },
+          "following_count": {
+            "type": "integer",
+            "title": "Following Count"
+          },
+          "is_viewer": {
+            "type": "boolean",
+            "title": "Is Viewer",
+            "description": "True when this is the caller's own profile"
+          },
+          "can_view_content": {
+            "type": "boolean",
+            "title": "Can View Content",
+            "description": "False for a private account the viewer does not follow (SPEC \u00a76.7)"
+          },
+          "viewer_follow_state": {
+            "$ref": "#/components/schemas/FollowState",
+            "description": "What the viewer's Follow button should say. NONE when signed out and on your own profile, where there is no button to draw."
+          },
+          "follows_viewer": {
+            "type": "boolean",
+            "title": "Follows Viewer",
+            "description": "True when this account follows the caller \u2014 an accepted edge the caller may remove (SPEC \u00a76.7). A pending request does not count."
+          },
+          "favorite_games": {
+            "items": {
+              "$ref": "#/components/schemas/FavoriteGameEntry"
+            },
+            "type": "array",
+            "title": "Favorite Games"
+          },
+          "stats": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileStats"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "display_name",
+          "bio",
+          "avatar_url",
+          "is_private",
+          "created_at",
+          "follower_count",
+          "following_count",
+          "is_viewer",
+          "can_view_content",
+          "viewer_follow_state",
+          "follows_viewer",
+          "favorite_games",
+          "stats"
+        ],
+        "title": "UserProfile",
+        "description": "A profile as one viewer sees it (SPEC \u00a76.2).\n\nThe shell \u2014 avatar, handle, display name, bio, follower counts \u2014 is public\neven for a private account, because SPEC \u00a76.7 needs a stranger to be able to\nfind the account and send a follow request. Everything gated sits behind\n`can_view_content`: `stats` is null and `favorite_games` is empty when the\nviewer has not been approved, and the followers/following *lists* refuse\noutright. Counts stay visible either way, as they do on Instagram."
+      },
+      "UserPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "bio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bio"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "is_private": {
+            "type": "boolean",
+            "title": "Is Private"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "display_name",
+          "bio",
+          "avatar_url",
+          "is_private",
+          "created_at"
+        ],
+        "title": "UserPublic",
+        "description": "The profile shell visible to anyone, including non-followers of a private\naccount (SPEC \u00a76.7)."
+      },
+      "UserSearchResult": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "is_private": {
+            "type": "boolean",
+            "title": "Is Private"
+          },
+          "review_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Count",
+            "description": "Null when the account is private and the viewer is not an approved follower."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "display_name",
+          "avatar_url",
+          "is_private"
+        ],
+        "title": "UserSearchResult",
+        "description": "A user search card.\n\nSPEC \u00a76.7: a private account still *appears* in search \u2014 hiding it would make\nit impossible to send a follow request \u2014 but everything gated behind approval\nis withheld. The shell (handle, display name, avatar) is always present;\n`review_count` is a stat, so it is null unless the viewer may see it."
+      },
+      "UserUpdate": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "bio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bio"
+          },
+          "is_private": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Private",
+            "description": "SPEC \u00a76.7. Going private keeps existing followers."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "UserUpdate",
+        "description": "PATCH body for `/users/me`.\n\nAbsent and null mean different things: an omitted key leaves the column\nalone, an explicit `null` clears it. That is why every field defaults to None\n*and* the handler reads `model_fields_set` rather than the values \u2014 sending\n`{\"bio\": null}` has to be able to erase a bio."
+      },
+      "UsernameAvailability": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "available"
+        ],
+        "title": "UsernameAvailability"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "description": "Access token from /auth/login",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

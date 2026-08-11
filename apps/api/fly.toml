@@ -1,0 +1,111 @@
+# Fly.io app config for the Sidequestd API.
+#
+# This file sits next to the Dockerfile on purpose. flyctl resolves a relative
+# `build.dockerfile` against the config file's directory in some versions and
+# against the build context in others; keeping the two the same makes the path
+# mean one thing either way. Deployed from the repo root as:
+#
+#     flyctl deploy apps/api --config apps/api/fly.toml --remote-only
+#
+# Anything secret belongs in `fly secrets set`, never here — this file is
+# committed. See DEPLOY.md §7.
+
+app = "sidequestd-api"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[deploy]
+  # Runs once per deploy, on the new image, on a throwaway machine, before any
+  # machine takes traffic — and a non-zero exit aborts the deploy, so a failed
+  # migration is never served. `migrate` runs the config preflight and
+  # `alembic upgrade head` and exits (see docker-entrypoint.sh).
+  #
+  # Named explicitly rather than as the bare `migrate` argument because Fly has
+  # gone back and forth on whether a release command replaces the image
+  # ENTRYPOINT or is appended to it. Spelled this way it is correct under both.
+  release_command = "sidequestd-entrypoint migrate"
+  strategy = "rolling"
+
+[env]
+  ENVIRONMENT = "production"
+  DEBUG = "false"
+
+  # The release command above owns migrations. Serving machines must not each
+  # repeat them: every one would take Postgres' DDL locks in turn, and a long
+  # migration would hold the rest in their start period.
+  RUN_MIGRATIONS = "false"
+
+  # Nothing but Fly's proxy can reach the internal port, so the forwarded-for
+  # header can be trusted — and must be, or every rate limit and every recorded
+  # session IP would be the proxy's.
+  FORWARDED_ALLOW_IPS = "*"
+
+  REFRESH_COOKIE_SECURE = "true"
+  # The web client and the API share the registrable domain sidequestd.app, so
+  # the refresh cookie is same-site and `lax` is enough. It was "none" while the
+  # apps were on .fly.dev, which is on the Public Suffix List and therefore made
+  # them different sites. `lax` is the stricter of the two — keep it unless a
+  # client moves off this domain. DEPLOY.md §4.
+  REFRESH_COOKIE_SAMESITE = "lax"
+
+  # Both hostnames the web client is served from. The browser sends the origin
+  # it was loaded from, so a visitor on www whose origin is missing here gets a
+  # CORS failure on login and no useful error. The .fly.dev origin came out once
+  # the domain was live; add it back temporarily if you ever need to fall back.
+  CORS_ORIGINS = "https://sidequestd.app,https://www.sidequestd.app"
+  # A single value — it is the base of emailed password-reset links, so it has
+  # to be the address users actually reach.
+  WEB_APP_URL = "https://sidequestd.app"
+
+  # Tigris, which `fly storage create` provisions. The keys it hands back are
+  # secrets and go in `fly secrets`; only the addresses are here.
+  #
+  # Two different hosts on purpose. S3_ENDPOINT_URL is the API endpoint boto3
+  # signs put/get/delete against — leave it on the Tigris host. Only the public
+  # read path is the custom domain.
+  S3_ENDPOINT_URL = "https://fly.storage.tigris.dev"
+  S3_BUCKET = "sidequestd-media"
+  S3_REGION = "auto"
+  # A custom domain rather than the bucket's Tigris hostname because this value
+  # is effectively permanent: `storage.key_for_url` recovers an object's key by
+  # prefix-matching the stored URL against this base, so changing it later makes
+  # every existing row's media undeletable. Behind a CNAME, a future move off
+  # Tigris is a DNS change instead of a data migration.
+  S3_PUBLIC_URL_BASE = "https://media.sidequestd.app"
+
+  SMTP_PORT = "587"
+  SMTP_USE_TLS = "true"
+  EMAIL_FROM = "no-reply@sidequestd.app"
+
+  # SMTP_HOST is deliberately absent. Its default is the local Mailpit
+  # container, which the production guardrail rejects — so the deploy fails with
+  # a legible message until a real host is set, instead of quietly accepting a
+  # plausible-looking placeholder and dropping every password-reset email.
+  # `fly secrets set SMTP_HOST=... SMTP_USER=... SMTP_PASSWORD=...`
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  # `suspend` resumes in well under a second and costs nothing while idle;
+  # min_machines_running keeps one warm so the first request of the day is not
+  # the one that pays for a cold start.
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    path = "/health"
+    interval = "15s"
+    timeout = "5s"
+    # Migrations are the release command's job, so a machine only has uvicorn
+    # to start here.
+    grace_period = "20s"
+
+[[vm]]
+  # 1GB rather than 512MB: review-clip processing reads a whole upload into
+  # memory, and the cap is 100MB (SPEC §6.3).
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1

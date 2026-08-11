@@ -1,0 +1,23 @@
+{
+  "name": "@sidequestd/api-types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript types generated from the Sidequestd OpenAPI schema. Do not edit src/schema.d.ts by hand.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "generate": "openapi-typescript openapi.json --output src/schema.d.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.9.1",
+    "typescript": "^5.9.3"
+  }
+}

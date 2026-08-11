@@ -1,0 +1,43 @@
+# Fly.io app config for the Sidequestd web client.
+#
+# Unlike the API's, this one lives at the repo root, because the web build's
+# context is the repo root — apps/web is an npm workspace and the lockfile and
+# packages/api-types both sit above it. Config directory and build context match
+# here too, which is what keeps `build.dockerfile` unambiguous:
+#
+#     flyctl deploy . --config fly.web.toml --remote-only \
+#       --build-arg NEXT_PUBLIC_API_URL=... --build-arg NEXT_PUBLIC_MEDIA_URL=...
+#
+# Both build args are passed on the command line rather than set here, so the
+# workflow is their single source of truth. They are compiled into the client
+# bundle: changing either means a rebuild, not a restart.
+
+app = "sidequestd-web"
+primary_region = "iad"
+
+[build]
+  dockerfile = "apps/web/Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    # Next has no dedicated health route; the landing page is static and cheap.
+    path = "/"
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "10s"
+
+[[vm]]
+  # The standalone server only serves prebuilt output — the build itself happens
+  # on Fly's remote builder, not here.
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

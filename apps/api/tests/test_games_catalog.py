@@ -1,0 +1,245 @@
+"""Games catalog browse, filter, sort and detail — SPEC §6.5, §8."""
+
+from __future__ import annotations
+
+import uuid
+
+import pytest
+from httpx import AsyncClient
+
+from app.models.game import Game
+from tests.conftest import SEED_GAME_COUNT
+
+BROWSE = "/api/v1/games"
+
+
+async def test_browse_returns_a_page_of_cards(client: AsyncClient, catalog: list[Game]) -> None:
+    response = await client.get(BROWSE, params={"limit": 5})
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert len(body["items"]) == 5
+    assert body["next_cursor"]
+
+    card = body["items"][0]
+    # SPEC §6.6: cover art, release year and platform are what a card renders.
+    assert {"id", "slug", "title", "cover_url", "release_date", "release_year", "platforms"} <= set(
+        card
+    )
+    # The long summary belongs to the detail view, not to a 20-item page.
+    assert "summary" not in card
+
+
+async def test_browse_is_open_to_signed_out_callers(
+    client: AsyncClient, catalog: list[Game]
+) -> None:
+    """The catalog is not user content, so nothing here is gated."""
+    response = await client.get(BROWSE)
+
+    assert response.status_code == 200
+    assert response.json()["items"]
+
+
+async def test_release_year_is_derived_from_the_release_date(
+    client: AsyncClient, catalog: list[Game]
+) -> None:
+    response = await client.get(BROWSE, params={"limit": 50})
+
+    for card in response.json()["items"]:
+        expected = int(card["release_date"][:4]) if card["release_date"] else None
+        assert card["release_year"] == expected
+
+
+# --- Sorting ---------------------------------------------------------------
+
+
+async def test_default_sort_is_alphabetical(client: AsyncClient, catalog: list[Game]) -> None:
+    titles = [
+        card["title"] for card in (await client.get(BROWSE, params={"limit": 50})).json()["items"]
+    ]
+
+    assert titles == sorted(titles)
+
+
+async def test_release_date_sort_is_newest_first(client: AsyncClient, catalog: list[Game]) -> None:
+    response = await client.get(BROWSE, params={"sort": "release_date", "limit": 50})
+
+    dates = [card["release_date"] for card in response.json()["items"]]
+    assert dates == sorted(dates, reverse=True)
+
+
+async def test_undated_games_sort_last_rather_than_disappearing(
+    client: AsyncClient, db, catalog: list[Game]
+) -> None:
+    """A NULL release date must not drop the row from a newest-first list."""
+    db.add(Game(title="Untitled Sequel", slug="untitled-sequel", release_date=None))
+    await db.flush()
+
+    response = await client.get(BROWSE, params={"sort": "release_date", "limit": 50})
+
+    titles = [card["title"] for card in response.json()["items"]]
+    assert titles[-1] == "Untitled Sequel"
+
+
+async def test_unknown_sort_is_rejected(client: AsyncClient) -> None:
+    response = await client.get(BROWSE, params={"sort": "vibes"})
+
+    assert response.status_code == 422
+
+
+# --- Filtering -------------------------------------------------------------
+
+
+async def test_filtering_by_genre(client: AsyncClient, catalog: list[Game]) -> None:
+    response = await client.get(BROWSE, params={"genre": "indie", "limit": 50})
+
+    items = response.json()["items"]
+    assert items
+    assert len(items) < SEED_GAME_COUNT, "an unfiltered result would prove nothing"
+    titles = {card["title"] for card in items}
+    assert {"Celeste", "Hollow Knight", "Stardew Valley"} <= titles
+
+
+async def test_repeated_genres_are_or_ed_within_the_facet(
+    client: AsyncClient, catalog: list[Game]
+) -> None:
+    indie = {
+        c["title"]
+        for c in (await client.get(BROWSE, params={"genre": "indie", "limit": 50})).json()["items"]
+    }
+    puzzle = {
+        c["title"]
+        for c in (await client.get(BROWSE, params={"genre": "puzzle", "limit": 50})).json()["items"]
+    }
+
+    both = await client.get(BROWSE, params=[("genre", "indie"), ("genre", "puzzle"), ("limit", 50)])
+
+    assert {card["title"] for card in both.json()["items"]} == indie | puzzle
+
+
+async def test_genre_and_platform_are_and_ed_across_facets(
+    client: AsyncClient, catalog: list[Game]
+) -> None:
+    response = await client.get(
+        BROWSE, params={"genre": "indie", "platform": "nintendo-switch", "limit": 50}
+    )
+
+    items = response.json()["items"]
+    assert items
+    for card in items:
+        assert "nintendo-switch" in {platform["slug"] for platform in card["platforms"]}
+
+
+async def test_unknown_facet_slug_returns_an_empty_page(
+    client: AsyncClient, catalog: list[Game]
+) -> None:
+    response = await client.get(BROWSE, params={"genre": "no-such-genre"})
+
+    assert response.status_code == 200
+    assert response.json() == {"items": [], "next_cursor": None}
+
+
+# --- Cursor pagination -----------------------------------------------------
+
+
+@pytest.mark.parametrize("sort", ["title", "release_date", "trending"])
+async def test_paging_walks_every_game_exactly_once(
+    client: AsyncClient, catalog: list[Game], sort: str
+) -> None:
+    seen: list[str] = []
+    cursor: str | None = None
+
+    for _ in range(20):  # generous bound; the loop breaks on the last page
+        params: dict[str, object] = {"limit": 5, "sort": sort}
+        if cursor:
+            params["cursor"] = cursor
+        body = (await client.get(BROWSE, params=params)).json()
+        seen.extend(card["id"] for card in body["items"])
+        cursor = body["next_cursor"]
+        if cursor is None:
+            break
+
+    assert cursor is None, "pagination did not terminate"
+    assert len(seen) == SEED_GAME_COUNT
+    assert len(set(seen)) == SEED_GAME_COUNT, "a game was returned on two pages"
+
+
+async def test_the_last_page_reports_no_cursor(client: AsyncClient, catalog: list[Game]) -> None:
+    response = await client.get(BROWSE, params={"limit": SEED_GAME_COUNT})
+
+    assert len(response.json()["items"]) == SEED_GAME_COUNT
+    assert response.json()["next_cursor"] is None
+
+
+async def test_the_cursor_carries_the_filter_nowhere(
+    client: AsyncClient, catalog: list[Game]
+) -> None:
+    """Cursors are positions, not saved queries — the caller resends the filter."""
+    first = (await client.get(BROWSE, params={"genre": "indie", "limit": 2})).json()
+    second = await client.get(
+        BROWSE, params={"genre": "indie", "limit": 2, "cursor": first["next_cursor"]}
+    )
+
+    assert second.status_code == 200
+    first_ids = {card["id"] for card in first["items"]}
+    assert not first_ids & {card["id"] for card in second.json()["items"]}
+
+
+@pytest.mark.parametrize("cursor", ["not-base64", "e30", "", "IntcInhcIjogMX0i"])
+async def test_a_corrupt_cursor_is_a_400_not_a_500(client: AsyncClient, cursor: str) -> None:
+    response = await client.get(BROWSE, params={"cursor": cursor})
+
+    assert response.status_code == 400
+    assert "cursor" in response.json()["detail"].lower()
+
+
+async def test_limit_is_capped(client: AsyncClient) -> None:
+    assert (await client.get(BROWSE, params={"limit": 500})).status_code == 422
+    assert (await client.get(BROWSE, params={"limit": 0})).status_code == 422
+
+
+# --- Detail ----------------------------------------------------------------
+
+
+async def test_game_detail_includes_genres_platforms_and_summary(
+    client: AsyncClient, catalog: list[Game]
+) -> None:
+    listed = (await client.get(BROWSE, params={"limit": 50})).json()["items"]
+    witcher = next(card for card in listed if card["title"] == "The Witcher 3: Wild Hunt")
+
+    response = await client.get(f"{BROWSE}/{witcher['id']}")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["title"] == "The Witcher 3: Wild Hunt"
+    assert body["summary"]
+    assert {genre["slug"] for genre in body["genres"]} == {"role-playing-rpg", "adventure"}
+    assert "nintendo-switch" in {platform["slug"] for platform in body["platforms"]}
+    assert body["external_source"] == "seed"
+
+
+async def test_unknown_game_is_a_404(client: AsyncClient) -> None:
+    response = await client.get(f"{BROWSE}/{uuid.uuid4()}")
+
+    assert response.status_code == 404
+
+
+async def test_a_non_uuid_id_does_not_shadow_the_literal_routes(client: AsyncClient) -> None:
+    """`/games/trending` must not be parsed as `/games/{game_id}`."""
+    assert (await client.get(f"{BROWSE}/trending")).status_code == 200
+    assert (await client.get(f"{BROWSE}/genres")).status_code == 200
+    assert (await client.get(f"{BROWSE}/not-a-uuid")).status_code == 422
+
+
+# --- Taxonomy --------------------------------------------------------------
+
+
+async def test_genres_and_platforms_are_listed_for_the_browse_filters(
+    client: AsyncClient, catalog: list[Game]
+) -> None:
+    genres = (await client.get(f"{BROWSE}/genres")).json()
+    platforms = (await client.get(f"{BROWSE}/platforms")).json()
+
+    assert {genre["slug"] for genre in genres} >= {"indie", "puzzle", "role-playing-rpg"}
+    assert {platform["slug"] for platform in platforms} >= {"nintendo-switch", "playstation-5"}
+    assert [genre["name"] for genre in genres] == sorted(genre["name"] for genre in genres)

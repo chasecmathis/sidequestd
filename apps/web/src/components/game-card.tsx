@@ -1,0 +1,76 @@
+"use client";
+
+/**
+ * The result card from SPEC §6.6: cover art, title, release year, platforms.
+ *
+ * `action` is a slot below the card for a control that belongs to the game but
+ * is not "open the game" — the add-to-list picker on Search (SPEC §6.9). It is a
+ * *sibling* of the link rather than a child: a select inside an anchor is
+ * invalid markup, and every browser resolves it differently.
+ *
+ * The cover art is the card. Everything under it is set small and quiet so a
+ * grid of these reads as a shelf of boxes rather than a table with pictures —
+ * which is also why the title sits in the serif: it is the one line anybody
+ * scans.
+ */
+import Image from "next/image";
+import Link from "next/link";
+import { ImageOff } from "lucide-react";
+import type { ReactNode } from "react";
+
+import { releaseYearLabel } from "@/lib/catalog";
+import type { GameSummary } from "@sidequestd/api-types";
+
+export function GameCard({ game, action }: { game: GameSummary; action?: ReactNode }) {
+  return (
+    <div className="flex h-full flex-col overflow-hidden rounded-lg border border-line bg-surface transition-colors duration-200 focus-within:border-line-strong hover:border-line-strong">
+      <Link href={`/games/${game.id}`} className="group flex flex-1 flex-col">
+        <div className="relative aspect-3/4 w-full overflow-hidden bg-surface-2">
+          {game.cover_url ? (
+            <Image
+              src={game.cover_url}
+              alt={`${game.title} cover art`}
+              fill
+              sizes="(max-width: 640px) 45vw, 200px"
+              className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+            />
+          ) : (
+            <span className="flex h-full flex-col items-center justify-center gap-2 px-3 text-center">
+              <ImageOff aria-hidden strokeWidth={1.25} className="size-5 text-fg-faint" />
+              <span className="type-eyebrow text-fg-faint">No cover art</span>
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-1 flex-col gap-1.5 p-3">
+          <h3 className="type-display text-base leading-tight text-fg">{game.title}</h3>
+          <p className="type-eyebrow text-fg-faint">{releaseYearLabel(game.release_year)}</p>
+          <p className="mt-auto truncate pt-1 text-xs text-fg-faint">
+            {game.platforms.map((platform) => platform.name).join(" · ") || "Platform unknown"}
+          </p>
+        </div>
+      </Link>
+
+      {action ? <div className="border-t border-line bg-surface-2 p-2">{action}</div> : null}
+    </div>
+  );
+}
+
+export function GameGrid({
+  games,
+  action,
+}: {
+  games: GameSummary[];
+  /** Rendered under every card. Given the game so one grid can build a control per row. */
+  action?: (game: GameSummary) => ReactNode;
+}) {
+  return (
+    <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+      {games.map((game) => (
+        <li key={game.id}>
+          <GameCard game={game} action={action?.(game)} />
+        </li>
+      ))}
+    </ul>
+  );
+}
