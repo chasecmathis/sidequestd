@@ -36,10 +36,79 @@ production. Nothing else is required.
 | `SMTP_PASSWORD`         | —                                                        | The API key. Postmark uses its Server API Token as *both* user and password.                                   |
 | `EMAIL_FROM`            | `no-reply@sidequestd.app`                                | Must be on a domain whose SPF/DKIM you control, or reset mail lands in spam.                                   |
 | `S3_ENDPOINT_URL`       | `https://s3.us-east-1.amazonaws.com`                     | S3 or any S3-compatible service (R2, B2, Spaces). Holds avatars and review media (SPEC §6.2, §6.3).            |
-| `S3_BUCKET`             | `sidequestd-media`                                       | Create it first; the app does not.                                                                             |
+| `S3_BUCKET`             | `sidequestd-media`                                       | Create it first; the app does not — **and make it publicly readable**, or every upload succeeds and then 403s on the way back. See "The bucket must be public" below. |
 | `S3_REGION`             | `us-east-1`                                              | —                                                                                                              |
 | `S3_ACCESS_KEY`         | `AKIA…`                                                  | An IAM user or scoped token with `GetObject`/`PutObject`/`DeleteObject` on that bucket and nothing else.        |
 | `S3_SECRET_KEY`         | —                                                        | Issued with the access key.                                                                                    |
+
+### The bucket must be public
+
+The credentials above are the app's *write* path. Reads do not use them:
+`storage.public_url()` hands the browser a plain `S3_PUBLIC_URL_BASE/<key>` URL,
+which is fetched anonymously. **A private bucket therefore breaks every image
+while leaving uploads working** — the object is stored, `avatar_url` is written,
+and the browser gets a 403 and renders the `alt` text instead.
+
+Locally this is already handled: `infra/docker-compose.yml` runs
+`mc anonymous set download local/sidequestd-media` against MinIO. Nothing does
+the equivalent in production, so it is a manual step on a new bucket:
+
+```sh
+# Tigris (Fly)
+flyctl storage update sidequestd-media --public
+
+# S3: bucket policy granting s3:GetObject to Principal "*"
+# R2: enable public access, or bind a custom domain
+```
+
+Everything in the bucket is world-readable once this is on, review media
+included. Keys are random UUIDs (`storage.build_key`), so they are unguessable
+but unauthenticated: a private account's media is protected by URL secrecy
+alone. Presigned URLs are the fix if that is not good enough, and they are a
+code change, not a setting. Object *listing* stays denied either way, so the
+bucket cannot be enumerated.
+
+### Verifying, and the custom domain
+
+Fetch a key that does not exist and read the error *code*, not the status — all
+three failures below can surface as a 404:
+
+```sh
+curl -sS https://media.sidequestd.app/avatars/nope.jpg
+```
+
+| Code            | Meaning                                                              |
+| --------------- | -------------------------------------------------------------------- |
+| `NoSuchKey`     | Correct. Public, and the host maps to the right bucket.               |
+| `AccessDenied`  | Bucket is private. See above.                                         |
+| `NoSuchBucket`  | The **custom domain is not registered with the bucket** — see below.  |
+
+`NoSuchBucket` is the confusing one, because the bucket plainly exists. Tigris
+resolves the bucket from the `Host` header, so an unregistered hostname is read
+*as a bucket name*: the error will say `BucketName: media.sidequestd.app`, which
+is the tell. A DNS CNAME alone does not do this — the domain has to be attached
+to the bucket:
+
+```sh
+flyctl storage update sidequestd-media --custom-domain media.sidequestd.app
+```
+
+Until that is set, TLS to the custom domain also fails intermittently
+(`tlsv1 alert internal error`) as only some edge nodes carry the certificate.
+
+To confirm the bucket itself is fine independently of the domain, bypass it —
+this endpoint always works and needs no custom-domain setup:
+
+```sh
+curl -sS https://sidequestd-media.t3.tigrisbucket.io/avatars/nope.jpg
+```
+
+If that says `NoSuchKey` and the custom domain says `NoSuchBucket`, the bucket is
+healthy and only the domain mapping is wrong. Fix the mapping rather than
+repointing `S3_PUBLIC_URL_BASE` and `NEXT_PUBLIC_MEDIA_URL` at the
+`t3.tigrisbucket.io` host: every `avatar_url` already in the database contains
+the public base that was configured when it was written, so changing the base
+orphans all of them — and it costs a web rebuild besides.
 
 Strongly recommended, not enforced:
 
@@ -230,11 +299,26 @@ TypeScript clients in `packages/api-types` do not depend on the route.
 - [ ] Register an account, then confirm the password-reset email actually
       arrives — SMTP failures are logged, never raised, so a broken mail
       provider looks like success from the client.
-- [ ] Upload an avatar and confirm it renders. `next.config.ts`
-      `images.remotePatterns` allow-lists the hosts `next/image` will load:
-      `images.igdb.com`, the local MinIO bucket, and whatever
-      `NEXT_PUBLIC_MEDIA_URL` was set to **at build time**. A blank or wrong
-      value there means every uploaded image 400s, and no restart fixes it.
+- [ ] Upload an avatar and confirm it renders. Two different things break this,
+      and they look identical in the UI — a broken image with its `alt` text.
+      Tell them apart from the optimizer's status code rather than by guessing:
+
+      ```sh
+      curl -sS -o /dev/null -w '%{http_code}\n' \
+        'https://sidequestd.app/_next/image?url=https%3A%2F%2Fmedia.sidequestd.app%2Favatars%2Fnope.jpg&w=256&q=75'
+      ```
+
+      - **400**, `"url" parameter is not allowed` — the host is not
+        allow-listed. `next.config.ts` `images.remotePatterns` covers
+        `images.igdb.com`, the local MinIO bucket, and whatever
+        `NEXT_PUBLIC_MEDIA_URL` was set to **at build time**. A blank or wrong
+        value there means every uploaded image 400s, and no restart fixes it —
+        only a rebuild.
+      - **anything else**, `upstream response is invalid` — the host is
+        allow-listed and the fault is on the bucket side. Ask the bucket
+        directly and read the error code, not the status: see §1, "Verifying,
+        and the custom domain". `AccessDenied` is a private bucket,
+        `NoSuchBucket` an unregistered custom domain. Neither needs a rebuild.
 - [ ] Confirm `/docs` is 404 in production.
 
 ## 6. Known limits at this size
@@ -295,6 +379,7 @@ Two details worth knowing:
 | Secret API config        | `fly secrets set --app sidequestd-api` | `SECRET_KEY`, `DATABASE_URL`, `SMTP_*`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` |
 | Public URLs for the web build | GitHub repository **variables** | `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_MEDIA_URL`                |
 | Deploy credential        | GitHub repository **secret**        | `FLY_API_TOKEN`                                               |
+| Bucket state, not config | The storage provider                | Public-read on `S3_BUCKET` (§1). No env var controls it, nothing in the repo asserts it, and a deploy will not restore it. |
 
 The `NEXT_PUBLIC_*` values are variables rather than secrets deliberately: they
 are public URLs, they end up in the client bundle either way, and a wrong one is

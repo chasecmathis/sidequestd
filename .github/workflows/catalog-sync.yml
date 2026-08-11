@@ -1,0 +1,212 @@
+name: Catalog sync
+
+# Keeps the games catalog (SPEC §2) current by re-running `app.cli.import_games`
+# against IGDB on a schedule. SPEC §6.11 wants a scheduled worker; until the
+# queue exists this is the scheduler, the same way `app.cli.trending` and
+# `app.cli.process_media` are still CLI commands.
+#
+# The work does not happen here. The runner has no route to the Fly private
+# network, so DATABASE_URL is unreachable from GitHub — this job only launches a
+# throwaway Fly machine from the API's own image, waits for it, and reports what
+# it did. Everything the command needs (DATABASE_URL, IGDB_CLIENT_ID,
+# IGDB_CLIENT_SECRET) comes from the app's secrets, which Fly injects into any
+# machine in the app.
+
+on:
+  schedule:
+    # 07:00 UTC. GitHub cron is UTC with no DST handling, so this lands at 02:00
+    # or 03:00 America/New_York depending on the season — close enough for a
+    # catalog refresh. Scheduled runs on shared runners can also start well late
+    # under load, so treat the time as a hint rather than a guarantee.
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+    inputs:
+      after_id:
+        description: "Resume just past this IGDB game id (the last 'page N: … through id X' line of an interrupted run). 0 starts from the beginning."
+        required: false
+        default: "0"
+
+# A full walk takes the better part of an hour, so runs can overlap without this.
+# Two at once would double the request rate against IGDB's four-per-second budget
+# and race each other's upserts. Queue rather than cancel — an interrupted sync
+# still made progress, and cancelling it throws that away.
+concurrency:
+  group: catalog-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync the games catalog
+    runs-on: ubuntu-latest
+    # Nearly all of this is spent watching a machine the runner does not own.
+    # The poll loop below gives up before this does, so the timeout is a backstop
+    # against a hung flyctl rather than the thing that bounds the sync.
+    timeout-minutes: 120
+
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      FLY_APP: sidequestd-api
+      # Fixed rather than run-scoped so a machine orphaned by a cancelled run is
+      # findable and gets cleaned up by the next one.
+      MACHINE_NAME: catalog-sync
+      AFTER_ID: ${{ github.event.inputs.after_id || '0' }}
+      # IGDB caps a page at 500 (IGDB_MAX_PAGE_SIZE); the CLI rejects more.
+      PAGE_SIZE: "500"
+
+    steps:
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Check the deploy credential is present
+        run: |
+          : "${FLY_API_TOKEN:?set the FLY_API_TOKEN repository secret}"
+
+      # `fly machine run --name` fails outright if the name is taken, so a
+      # machine left behind by a cancelled run would block every future sync.
+      - name: Remove a machine left behind by an earlier run
+        run: |
+          id=$(flyctl machines list --app "$FLY_APP" --json \
+               | jq -r --arg n "$MACHINE_NAME" '.[] | select(.name==$n) | .id')
+          if [ -n "$id" ]; then
+            echo "destroying orphaned machine $id"
+            flyctl machine destroy "$id" --app "$FLY_APP" --force
+          else
+            echo "no orphaned machine"
+          fi
+
+      - name: Launch the sync
+        run: |
+          # Whatever image the app is running right now, rather than a pinned
+          # digest: a scheduled machine created once would keep running the build
+          # it was created from long after the app had moved on.
+          img=$(flyctl image show --app "$FLY_APP" --json \
+                | jq -r '.[0] | "\(.Registry)/\(.Repository):\(.Tag)"')
+          echo "image: $img"
+
+          # --detach because the attached form is not a job runner: it monitors
+          # machine *start*, not command exit, and it hangs on a command that
+          # finishes quickly. The exit code is read back from the machine's
+          # events instead, in the step below.
+          #
+          # --env RUN_MIGRATIONS=false because `fly machine run` injects the
+          # app's secrets but NOT its fly.toml [env]. Without it the entrypoint
+          # defaults RUN_MIGRATIONS to true and this job would run
+          # `alembic upgrade head` against production as a side effect of a
+          # catalog sync. ENVIRONMENT is likewise unset and so defaults to
+          # `local`, which is what we want: the command touches only the database
+          # and IGDB, and the production guardrail would otherwise refuse to boot
+          # over CORS and S3 settings this job never reads.
+          #
+          # The bare `--` matters. flyctl parses flags it recognises out of the
+          # trailing command, and `-c` in particular is its own --config.
+          flyctl machine run "$img" \
+            --app "$FLY_APP" \
+            --name "$MACHINE_NAME" \
+            --region iad \
+            --env RUN_MIGRATIONS=false \
+            --vm-memory 2048 \
+            --restart no \
+            --detach \
+            -- python -m app.cli.import_games \
+                 --igdb --all \
+                 --limit "$PAGE_SIZE" \
+                 --after-id "$AFTER_ID"
+
+      - name: Wait for it to finish
+        id: wait
+        run: |
+          # 90 minutes. A full walk is ~700 pages paced at four requests a
+          # second; this is roughly double the observed run time, so hitting it
+          # means something is wrong rather than merely slow.
+          deadline=$((SECONDS + 5400))
+          state=""
+          missing=0
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            state=$(flyctl machines list --app "$FLY_APP" --json \
+                    | jq -r --arg n "$MACHINE_NAME" '.[] | select(.name==$n) | .state')
+            case "$state" in
+              stopped|destroyed)
+                echo "machine reached state: $state"
+                break
+                ;;
+              "")
+                # The list is eventually consistent and flyctl occasionally
+                # returns a transient empty result, so one miss is not proof the
+                # machine is gone. Three in a row (90s) is.
+                missing=$((missing + 1))
+                if [ "$missing" -ge 3 ]; then
+                  echo "::error::the sync machine disappeared before it finished"
+                  exit 1
+                fi
+                echo "machine not listed (miss $missing/3)"
+                sleep 30
+                continue
+                ;;
+            esac
+            missing=0
+            echo "state=$state; still going ($((SECONDS / 60))m elapsed)"
+            sleep 30
+          done
+
+          if [ "$state" != "stopped" ] && [ "$state" != "destroyed" ]; then
+            echo "::error::sync did not finish within 90 minutes (last state: $state)"
+            exit 1
+          fi
+
+      # Before the exit code, so a failure has its output right above it. The
+      # command prints one line per page, so this is also the record of how far
+      # a failed run got — the id in the last line is what --after-id takes.
+      - name: Logs
+        if: always()
+        run: |
+          id=$(flyctl machines list --app "$FLY_APP" --json \
+               | jq -r --arg n "$MACHINE_NAME" '.[] | select(.name==$n) | .id')
+          if [ -n "$id" ]; then
+            flyctl logs --app "$FLY_APP" --machine "$id" --no-tail || true
+          else
+            echo "no machine to read logs from"
+          fi
+
+      - name: Report the result
+        run: |
+          events=$(flyctl machines list --app "$FLY_APP" --json \
+                   | jq --arg n "$MACHINE_NAME" '.[] | select(.name==$n) | .events')
+
+          # Field access on null yields null in jq, so an absent exit event falls
+          # through to "unknown" rather than erroring.
+          code=$(echo "$events" | jq -r \
+                 '(map(select(.type=="exit")) | first | .request.exit_event.exit_code) // "unknown"')
+          oom=$(echo "$events" | jq -r \
+                '(map(select(.type=="exit")) | first | .request.exit_event.oom_killed) // false')
+
+          if [ "$oom" = "true" ]; then
+            echo "::error::the sync was OOM-killed; raise --vm-memory"
+            exit 1
+          fi
+
+          case "$code" in
+            0)
+              echo "catalog sync completed"
+              ;;
+            unknown)
+              # Never pass on a result we could not read: a silent nightly
+              # failure is the whole thing this step exists to prevent.
+              echo "::error::could not determine the sync's exit code"
+              exit 1
+              ;;
+            *)
+              echo "::error::catalog sync failed (exit $code); see the logs above, and resume with the id from the last 'page N' line"
+              exit 1
+              ;;
+          esac
+
+      # always(), so a failed or cancelled run does not leave a machine behind
+      # (and does not leave it billing). The cleanup step at the top is the
+      # backstop for the case where even this does not get to run.
+      - name: Clean up
+        if: always()
+        run: |
+          id=$(flyctl machines list --app "$FLY_APP" --json \
+               | jq -r --arg n "$MACHINE_NAME" '.[] | select(.name==$n) | .id')
+          if [ -n "$id" ]; then
+            flyctl machine destroy "$id" --app "$FLY_APP" --force
+          fi
