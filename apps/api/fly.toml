@@ -1,11 +1,16 @@
 # Fly.io app config for the Sidequestd API.
 #
-# This file sits next to the Dockerfile on purpose. flyctl resolves a relative
-# `build.dockerfile` against the config file's directory in some versions and
-# against the build context in others; keeping the two the same makes the path
-# mean one thing either way. Deployed from the repo root as:
+# This file sits next to the Dockerfile on purpose. flyctl resolves relative
+# paths — `build.dockerfile` here, `--config` on the command line — against the
+# config's directory in some versions and against the build context in others.
+# Keeping the two the same makes every path mean one thing either way.
 #
-#     flyctl deploy apps/api --config apps/api/fly.toml --remote-only
+# So deploy from *this* directory and let flyctl discover the config itself:
+#
+#     cd apps/api && flyctl deploy --remote-only
+#
+# Passing `--config apps/api/fly.toml` from the repo root is what the ambiguity
+# above breaks, with "config file not found at specified path".
 #
 # Anything secret belongs in `fly secrets set`, never here — this file is
 # committed. See DEPLOY.md §7.

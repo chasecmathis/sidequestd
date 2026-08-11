@@ -263,10 +263,15 @@ them pass.
 push to main
   └─ api ─┐
      web ─┤
-  images ─┼─→ deploy ─→ flyctl deploy apps/api   (release_command: alembic upgrade head)
-   types ─┘             flyctl deploy .          (web, with the public URLs baked in)
-                        smoke test               (GET /health, /docs must 404)
+  images ─┼─→ deploy ─→ cd apps/api && flyctl deploy   (release_command: alembic upgrade head)
+   types ─┘             flyctl deploy --config fly.web.toml --build-arg …
+                        smoke test                      (GET /health, /docs must 404)
 ```
+
+Each `flyctl deploy` runs from the directory that is its build context, and
+names no path. flyctl resolves a relative `--config` against the working
+directory in some versions and against the PATH argument in others; running
+from the build context root is the one form both readings agree on.
 
 Five to seven minutes end to end. The API goes first and the two steps are
 sequential, so a failed migration aborts the deploy before the new client ever

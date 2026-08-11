@@ -5,8 +5,13 @@
 # packages/api-types both sit above it. Config directory and build context match
 # here too, which is what keeps `build.dockerfile` unambiguous:
 #
-#     flyctl deploy . --config fly.web.toml --remote-only \
+#     flyctl deploy --config fly.web.toml --remote-only \
 #       --build-arg NEXT_PUBLIC_API_URL=... --build-arg NEXT_PUBLIC_MEDIA_URL=...
+#
+# Run it from the repo root, with no PATH argument — flyctl then uses the
+# working directory as the build context and resolves --config against it, so
+# there is no version-dependent ambiguity about which directory a relative path
+# is relative to.
 #
 # Both build args are passed on the command line rather than set here, so the
 # workflow is their single source of truth. They are compiled into the client

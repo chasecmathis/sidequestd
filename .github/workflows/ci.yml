@@ -170,15 +170,22 @@ jobs:
       # The API goes first. Its release command runs the migration, and if that
       # fails the deploy aborts — which has to stop the web deploy too, rather
       # than leaving a new client talking to an old schema.
+      #
+      # Neither step passes a PATH argument or a path-y --config. flyctl has
+      # resolved a relative --config against the working directory in some
+      # versions and against the PATH argument in others, and the two disagree
+      # whenever the config does not sit in the build context root. Running from
+      # the directory that *is* the build context makes both readings identical:
+      # flyctl finds ./fly.toml on its own and builds from `.`.
       - name: Deploy the API
-        run: |
-          flyctl deploy apps/api \
-            --config apps/api/fly.toml \
-            --remote-only
+        working-directory: apps/api
+        run: flyctl deploy --remote-only
 
+      # The web build context is the repo root — apps/web is an npm workspace —
+      # so this one runs from the root and names its config, which lives there.
       - name: Deploy the web client
         run: |
-          flyctl deploy . \
+          flyctl deploy \
             --config fly.web.toml \
             --remote-only \
             --build-arg NEXT_PUBLIC_API_URL="$API_URL" \
