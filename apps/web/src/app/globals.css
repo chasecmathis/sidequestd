@@ -1,0 +1,213 @@
+@import "tailwindcss";
+
+/**
+ * Editorial Noir.
+ *
+ * Quiet surfaces, loud typography. Cover art is the only saturated colour on
+ * screen; the chrome is near-black, hairline rules and one electric orchid.
+ *
+ * The governing rule, which everything below is built to hold: **the accent
+ * appears as a fill, a border or a focus ring — almost never as body text.**
+ * Actions are filled blocks, inline links are ordinary text with an underline
+ * that turns orchid on hover, and the amber stars stay the one warm chromatic
+ * thing on a card — so they read as data rather than decoration. Purple and
+ * amber sit almost opposite each other on the wheel, so the two never muddy;
+ * the rule is what keeps the page from acquiring a third coloured voice.
+ *
+ * Every name below sits in a Tailwind v4 theme namespace, so it arrives as a
+ * utility: `--color-surface-2` is `bg-surface-2`, `--radius-lg` is `rounded-lg`.
+ * There are no `[var(--…)]` arbitrary values anywhere in the app.
+ */
+
+@theme {
+  /* Canvas & surfaces. A near-black carrying the faintest violet cast, so the
+     greys agree with the accent rather than sitting under it — the same reason
+     they would lean warm under a warm accent. Never a blue-black: that is
+     the default dark mode everything else already looks like. */
+  --color-canvas: #0a090d;
+  --color-surface: #131218;
+  --color-surface-2: #1c1b24;
+  --color-line: #282634;
+  --color-line-strong: #3c3a4d;
+
+  /* Foreground. Off-white, never #fff — pure white on near-black glares. Cool
+     rather than warm, to sit with the canvas. Named `fg` rather than `text` so
+     the utility reads `text-fg` instead of `text-text`. */
+  --color-fg: #f1eff5;
+  --color-fg-dim: #a3a0ae;
+  /* Non-essential metadata at >=14px only. Below that it fails AA. */
+  --color-fg-faint: #6c6979;
+
+  /* The only brand chroma. Light and luminous rather than a mid-tone violet:
+     the accent's whole job is to be a bright block on a black page, and that
+     only works if the fill carries dark text. A saturated purple would need
+     white text and would read muted at the same size. */
+  --color-accent: #c08cff;
+  --color-accent-dim: #a96ff5;
+  --color-accent-ink: #12091c;
+  --color-accent-wash: rgb(192 140 255 / 0.12);
+
+  /* Semantic. */
+  --color-star: #f5b942;
+  --color-danger: #ff6b5a;
+  --color-success: #6fd98f;
+
+  /* Shape. Tighter than a blanket rounded-2xl: an editorial card wants a corner
+     you can see is deliberate, not a pill. These override Tailwind's defaults,
+     so `rounded-lg` means this everywhere. */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+
+  /* Motion. `--ease-out` overrides Tailwind's default easing, so every
+     `transition` in the app decelerates the same way without being told to. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Type. The three variables the families point at are set by next/font in
+     layout.tsx; these lines are what turn them into `font-display`,
+     `font-sans` and `font-mono`. */
+  --font-display: var(--font-instrument-serif), ui-serif, Georgia, serif;
+  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  /* The header is sticky; without this an in-page anchor lands underneath it. */
+  scroll-padding-top: 5rem;
+}
+
+body {
+  position: relative;
+  background: var(--color-canvas);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/**
+ * Grain.
+ *
+ * The cheapest thing that stops a flat near-black from reading as "unstyled". One
+ * fixed layer of SVG turbulence at 3.5%, over everything and clickable through —
+ * `pointer-events: none` is load-bearing, not decorative.
+ */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/**
+ * One focus ring for the whole app.
+ *
+ * Previously every control brought its own `focus:ring-2 focus:ring-.../50`,
+ * which meant a control that forgot to had none at all. The accent on near-black is
+ * the highest-contrast pair in the palette, so the accessible thing and the
+ * on-brand thing are the same thing here.
+ */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
+/**
+ * Display type, with the metrics that make it work.
+ *
+ * A `@utility` rather than a plain class so it lands in Tailwind's utilities
+ * layer and a caller can still override the tracking on one heading. Instrument
+ * Serif is a high-contrast face: set loose it looks accidental, and below about
+ * 28px the thin strokes disappear. This is for headlines only.
+ */
+@utility type-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  line-height: 1.02;
+}
+
+/**
+ * The signature micro-label.
+ *
+ * Small mono caps are what make metadata read as typeset data rather than as
+ * small grey text — a rating, a playtime, a section eyebrow, a timestamp.
+ */
+@utility type-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/** Review prose: a measure, so a long review does not run the full width of a
+    desktop card and become unreadable. */
+@utility prose-review {
+  max-width: 66ch;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+/**
+ * Links.
+ *
+ * This is how a text link gets the accent without becoming coloured text, which
+ * the palette rule forbids: the *underline* carries the accent, the letters stay
+ * `--color-fg`. `link` is for prose, where a reader needs to see the link before
+ * hovering it. `link-quiet` is for titles and names, which are already obviously
+ * clickable from their position and only need the confirmation on hover.
+ */
+@utility link {
+  text-decoration: underline;
+  text-decoration-color: var(--color-line-strong);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 150ms var(--ease-out);
+
+  &:hover {
+    text-decoration-color: var(--color-accent);
+  }
+}
+
+@utility link-quiet {
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 150ms var(--ease-out);
+
+  &:hover {
+    text-decoration-color: var(--color-accent);
+  }
+}
+
+/**
+ * Backstop under MotionConfig's `reducedMotion="user"`.
+ *
+ * Motion handles its own animations; this catches the CSS transitions and
+ * keyframes it knows nothing about, so there is no surface where the preference
+ * is honoured by one system and ignored by the other.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,404 @@
+{
+  "$comment": "Offline catalog fixture so the games slice runs with no IGDB account (SPEC §2). This is development data, not a mirror of IGDB: `external_id` records the IGDB game id where it is known, so a later live sync updates the row in place rather than duplicating it, but the ids and metadata here are best-effort and `--igdb` is the authoritative source. Cover URLs point at IGDB's public CDN and were checked to show the right game; entries whose cover could not be verified carry null, which the clients render as a 'no cover art' card.",
+  "source": "seed",
+  "games": [
+    {
+      "external_id": "1942",
+      "title": "The Witcher 3: Wild Hunt",
+      "summary": "A story-driven open world RPG set in a visually stunning fantasy universe, following monster hunter Geralt of Rivia as he searches for his adopted daughter.",
+      "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co1wyy.jpg",
+      "release_date": "2015-05-19",
+      "genres": [
+        "Role-playing (RPG)",
+        "Adventure"
+      ],
+      "platforms": [
+        "PC (Microsoft Windows)",
+        "PlayStation 4",
+        "Xbox One",
+        "Nintendo Switch",
+        "PlayStation 5"
+      ]
+    },
+    {
+      "external_id": "1905",
+      "title": "Fortnite",
+      "summary": "A survival sandbox that grew into a battle royale phenomenon, mixing building mechanics with third-person shooting.",
+      "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co2ekt.jpg",
+      "release_date": "2017-07-25",
+      "genres": [
+        "Shooter",
+        "Adventure"
+      ],
+      "platforms": [
+        "PC (Microsoft Windows)",
+        "PlayStation 5",
+        "Xbox Series X|S",
+        "Nintendo Switch"
+      ]
+    },
+    {
+      "external_id": "119171",
+      "title": "Elden Ring",
+      "summary": "An action RPG set in the Lands Between, made in collaboration between FromSoftware and George R. R. Martin.",
+      "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co4jni.jpg",
+      "release_date": "2022-02-25",
+      "genres": [
+        "Role-playing (RPG)",
+        "Adventure"
+      ],
+      "platforms": [
+        "PC (Microsoft Windows)",
+        "PlayStation 4",
+        "PlayStation 5",
+        "Xbox One",
+        "Xbox Series X|S"
+      ]
+    },
+    {
+      "external_id": "7346",
+      "title": "The Legend of Zelda: Breath of the Wild",
+      "summary": "Link wakes after a hundred-year sleep into a Hyrule that has forgotten him, in an open-air adventure built around experimentation.",
+      "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co3p2d.jpg",
+      "release_date": "2017-03-03",
+      "genres": [
+        "Adventure",
+        "Role-playing (RPG)",
+        "Puzzle"
+      ],
+      "platforms": [
+        "Nintendo Switch",
+        "Wii U"
+      ]
+    },
+    {
+      "external_id": "113112",
+      "title": "Hades",
+      "summary": "A god-like rogue-like dungeon crawler in which you defy the god of the dead as you hack and slash out of the Underworld.",
+      "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co39vc.jpg",
+      "release_date": "2020-09-17",
+      "genres": [
+        "Indie",
+        "Role-playing (RPG)",
+        "Hack and slash/Beat 'em up"
+      ],
+      "platforms": [
+        "PC (Microsoft Windows)",
+        "Nintendo Switch",
+        "PlayStation 5",
+        "Xbox Series X|S"
+      ]
+    },
+    {
+      "external_id": "1877",
+      "title": "Cyberpunk 2077",
+      "summary": "An open-world action adventure set in Night City, a megalopolis obsessed with power, glamour and body modification.",
+      "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co7497.jpg",
+      "release_date": "2020-12-10",
+      "genres": [
+        "Role-playing (RPG)",
+        "Shooter",
+        "Adventure"
+      ],
+      "platforms": [
+        "PC (Microsoft Windows)",
+        "PlayStation 5",
+        "Xbox Series X|S"
+      ]
+    },
+    {
+      "external_id": "1020",
+      "title": "Grand Theft Auto V",
+      "summary": "Three very different criminals team up for a series of heists across the city of Los Santos and Blaine County.",
+      "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co2lbd.jpg",
+      "release_date": "2013-09-17",
+      "genres": [
+        "Shooter",
+        "Racing",
+        "Adventure"
+      ],
+      "platforms": [
+        "PC (Microsoft Windows)",
+        "PlayStation 4",
+        "PlayStation 5",
+        "Xbox Series X|S"
+      ]
+    },
+    {
+      "external_id": "1074",
+      "title": "Super Mario Odyssey",
+      "summary": "Mario sets off on a globe-trotting sandbox adventure with Cappy, a sentient hat that lets him possess anything he throws it at.",
+      "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co1mxf.jpg",
+      "release_date": "2017-10-27",
+      "genres": [
+        "Platform",
+        "Adventure"
+      ],
+      "platforms": [
+        "Nintendo Switch"
+      ]
+    },
+    {
+      "external_id": "26192",
+      "title": "Celeste",
+      "summary": "Help Madeline survive her inner demons on her journey to the top of Celeste Mountain in this super-tight platformer.",
+      "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co3byy.jpg",
+      "release_date": "2018-01-25",
+      "genres": [
+        "Platform",
+        "Indie"
+      ],
+      "platforms": [
+        "PC (Microsoft Windows)",
+        "Nintendo Switch",
+        "PlayStation 4",
+        "Xbox One"
+      ]
+    },
+    {
+      "external_id": "17000",
+      "title": "Stardew Valley",
+      "summary": "You inherited your grandfather's old farm plot. Armed with hand-me-down tools and a few coins, you set out to begin your new life.",
+      "cover_url": null,
+      "release_date": "2016-02-26",
+      "genres": [
+        "Simulator",
+        "Role-playing (RPG)",
+        "Indie"
+      ],
+      "platforms": [
+        "PC (Microsoft Windows)",
+        "Nintendo Switch",
+        "PlayStation 4",
+        "Xbox One"
+      ]
+    },
+    {
+      "external_id": "1170",
+      "title": "Hollow Knight",
+      "summary": "Forge your own path in a classic, hand-drawn 2D action adventure through a vast, ruined kingdom of insects.",
+      "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co1rgi.jpg",
+      "release_date": "2017-02-24",
+      "genres": [
+        "Platform",
+        "Adventure",
+        "Indie"
+      ],
+      "platforms": [
+        "PC (Microsoft Windows)",
+        "Nintendo Switch",
+        "PlayStation 4",
+        "Xbox One"
+      ]
+    },
+    {
+      "external_id": "11156",
+      "title": "Hades II",
+      "summary": "Battle beyond the Underworld as the immortal Princess of the Underworld, wielding witchcraft against the Titan of Time.",
+      "cover_url": null,
+      "release_date": "2024-05-06",
+      "genres": [
+        "Indie",
+        "Role-playing (RPG)",
+        "Hack and slash/Beat 'em up"
+      ],
+      "platforms": [
+        "PC (Microsoft Windows)"
+      ]
+    },
+    {
+      "external_id": "72129",
+      "title": "Baldur's Gate 3",
+      "summary": "Gather your party and return to the Forgotten Realms in a tale of fellowship, betrayal, sacrifice and the lure of absolute power.",
+      "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co670h.jpg",
+      "release_date": "2023-08-03",
+      "genres": [
+        "Role-playing (RPG)",
+        "Strategy",
+        "Adventure"
+      ],
+      "platforms": [
+        "PC (Microsoft Windows)",
+        "PlayStation 5",
+        "Xbox Series X|S"
+      ]
+    },
+    {
+      "external_id": "25076",
+      "title": "Red Dead Redemption 2",
+      "summary": "America, 1899. Arthur Morgan and the Van der Linde gang are outlaws on the run at the end of the age of outlaws.",
+      "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co1q1f.jpg",
+      "release_date": "2018-10-26",
+      "genres": [
+        "Shooter",
+        "Adventure"
+      ],
+      "platforms": [
+        "PC (Microsoft Windows)",
+        "PlayStation 4",
+        "Xbox One"
+      ]
+    },
+    {
+      "external_id": "19560",
+      "title": "God of War",
+      "summary": "Kratos lives as a man in the realm of Norse gods, teaching his son Atreus to survive a hostile world.",
+      "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co1tmu.jpg",
+      "release_date": "2018-04-20",
+      "genres": [
+        "Hack and slash/Beat 'em up",
+        "Adventure"
+      ],
+      "platforms": [
+        "PlayStation 4",
+        "PC (Microsoft Windows)"
+      ]
+    },
+    {
+      "external_id": "115276",
+      "title": "Returnal",
+      "summary": "Break the cycle of chaos on an ever-changing alien planet in a third-person rogue-like shooter.",
+      "cover_url": null,
+      "release_date": "2021-04-30",
+      "genres": [
+        "Shooter",
+        "Adventure"
+      ],
+      "platforms": [
+        "PlayStation 5",
+        "PC (Microsoft Windows)"
+      ]
+    },
+    {
+      "external_id": "9927",
+      "title": "Disco Elysium",
+      "summary": "A groundbreaking role playing game where you are a detective with a unique skill system at your disposal and a whole city to carve your path across.",
+      "cover_url": null,
+      "release_date": "2019-10-15",
+      "genres": [
+        "Role-playing (RPG)",
+        "Point-and-click",
+        "Indie"
+      ],
+      "platforms": [
+        "PC (Microsoft Windows)",
+        "PlayStation 5",
+        "Nintendo Switch",
+        "Xbox Series X|S"
+      ]
+    },
+    {
+      "external_id": "134595",
+      "title": "Balatro",
+      "summary": "A poker-inspired roguelike deckbuilder about building absurd score-multiplying jokers.",
+      "cover_url": null,
+      "release_date": "2024-02-20",
+      "genres": [
+        "Card & Board Game",
+        "Strategy",
+        "Indie"
+      ],
+      "platforms": [
+        "PC (Microsoft Windows)",
+        "Nintendo Switch",
+        "PlayStation 5",
+        "Xbox Series X|S"
+      ]
+    },
+    {
+      "external_id": "27789",
+      "title": "Among Us",
+      "summary": "An online party game of teamwork and betrayal aboard a spaceship, where one of the crew is an impostor.",
+      "cover_url": null,
+      "release_date": "2018-06-15",
+      "genres": [
+        "Strategy",
+        "Indie"
+      ],
+      "platforms": [
+        "PC (Microsoft Windows)",
+        "Nintendo Switch",
+        "PlayStation 5"
+      ]
+    },
+    {
+      "external_id": "2963",
+      "title": "Minecraft",
+      "summary": "Place blocks, craft tools and survive the night in a procedurally generated world with no fixed goal.",
+      "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co49x5.jpg",
+      "release_date": "2011-11-18",
+      "genres": [
+        "Simulator",
+        "Adventure",
+        "Indie"
+      ],
+      "platforms": [
+        "PC (Microsoft Windows)",
+        "Nintendo Switch",
+        "PlayStation 4",
+        "Xbox One"
+      ]
+    },
+    {
+      "external_id": "1085",
+      "title": "Portal 2",
+      "summary": "A first-person puzzle game about thinking with portals, GLaDOS, and a small personality core called Wheatley.",
+      "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co1rs4.jpg",
+      "release_date": "2011-04-19",
+      "genres": [
+        "Puzzle",
+        "Shooter",
+        "Platform"
+      ],
+      "platforms": [
+        "PC (Microsoft Windows)",
+        "PlayStation 3",
+        "Xbox 360"
+      ]
+    },
+    {
+      "external_id": "1029",
+      "title": "Dark Souls",
+      "summary": "A punishing action RPG set in the dying kingdom of Lordran, where death is a mechanic rather than a failure state.",
+      "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co2uro.jpg",
+      "release_date": "2011-09-22",
+      "genres": [
+        "Role-playing (RPG)",
+        "Adventure"
+      ],
+      "platforms": [
+        "PC (Microsoft Windows)",
+        "PlayStation 3",
+        "Xbox 360"
+      ]
+    },
+    {
+      "external_id": "96437",
+      "title": "Animal Crossing: New Horizons",
+      "summary": "Build a life on a deserted island at your own pace, one bell and one fossil at a time.",
+      "cover_url": null,
+      "release_date": "2020-03-20",
+      "genres": [
+        "Simulator",
+        "Adventure"
+      ],
+      "platforms": [
+        "Nintendo Switch"
+      ]
+    },
+    {
+      "external_id": "125174",
+      "title": "Marvel's Spider-Man 2",
+      "summary": "Peter Parker and Miles Morales share a New York threatened by Kraven the Hunter and the symbiote.",
+      "cover_url": null,
+      "release_date": "2023-10-20",
+      "genres": [
+        "Adventure",
+        "Hack and slash/Beat 'em up"
+      ],
+      "platforms": [
+        "PlayStation 5"
+      ]
+    }
+  ]
+}

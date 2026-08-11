@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Sidequestd",
+    "slug": "sidequestd",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "sidequestd",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.sidequestd.client"
+    },
+    "android": {
+      "package": "app.sidequestd.client",
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": ["expo-router", "expo-secure-store"],
+    "extra": {
+      "apiUrl": "http://localhost:8000"
+    }
+  }
+}

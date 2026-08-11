@@ -1,0 +1,95 @@
+[project]
+name = "sidequestd-api"
+version = "0.1.0"
+description = "Sidequestd shared backend API"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.118",
+    "uvicorn[standard]>=0.37",
+    "sqlalchemy[asyncio]>=2.0.44",
+    "asyncpg>=0.30",
+    "alembic>=1.16",
+    # The sync driver Alembic runs on (see `Settings.sync_database_url`). A
+    # runtime dependency, not a dev one: `alembic upgrade head` is part of every
+    # deploy, and the production image is built with --no-dev.
+    "psycopg[binary]>=3.2",
+    "pydantic>=2.12",
+    "pydantic-settings>=2.11",
+    "pydantic[email]>=2.12",
+    "argon2-cffi>=25.1",
+    "pyjwt>=2.10",
+    "python-multipart>=0.0.20",
+    "slowapi>=0.1.9",
+    "aiosmtplib>=4.0",
+    # Runtime, not just tests: the IGDB import CLI is the only caller.
+    "httpx>=0.28",
+    # S3-compatible object storage (MinIO in dev). Synchronous, so every call is
+    # dispatched to a thread — see app/services/storage.py.
+    "boto3>=1.40",
+    # Thumbnailing and dimension probing for review media (SPEC §6.3). Pure
+    # Python/C, no ffmpeg or other external process — see app/services/media.py.
+    "pillow>=11.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.4",
+    "pytest-asyncio>=1.2",
+    "pytest-cov>=7.0",
+    "ruff>=0.14",
+    "mypy>=1.18",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["migrations/versions"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "C4",   # comprehensions
+    "UP",   # pyupgrade
+    "ASYNC",# flake8-async
+    "S",    # bandit
+    "RUF",
+]
+ignore = [
+    "B008",  # FastAPI Depends() in defaults is the documented idiom
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S105", "S106"]  # asserts and hardcoded test passwords are fine
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+strict = true
+warn_return_any = true
+disallow_untyped_defs = true
+exclude = ["migrations/"]
+
+[[tool.mypy.overrides]]
+module = ["slowapi.*", "boto3.*", "botocore.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+# Fixtures and tests must share one loop: asyncpg connections are bound to the
+# loop that opened them.
+asyncio_default_fixture_loop_scope = "function"
+asyncio_default_test_loop_scope = "function"
+filterwarnings = ["error::DeprecationWarning"]

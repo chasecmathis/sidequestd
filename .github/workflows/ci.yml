@@ -2,32 +2,194 @@ name: CI
 
 on:
   push:
-    branches: ['**']
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Superseding a PR run is free. Superseding a main run is not: two merges
+  # landing close together would cancel the first one mid-deploy, possibly
+  # between the API and the web app. Let main runs queue and finish.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  lint-and-test:
+  api:
+    name: API
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: sidequestd
+          POSTGRES_PASSWORD: sidequestd
+          POSTGRES_DB: sidequestd_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sidequestd"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://sidequestd:sidequestd@localhost:5432/sidequestd_test
+      ENVIRONMENT: test
+      SECRET_KEY: ci-secret-not-used-outside-ci
+      RATE_LIMIT_ENABLED: "false"
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          working-directory: apps/api
+      - run: uv sync --all-extras
+      - name: Lint
+        run: uv run ruff check . && uv run ruff format --check .
+      - name: Type check
+        run: uv run mypy app
+      - name: Test
+        run: uv run pytest
+
+  web:
+    name: Web
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          python-version-file: 'backend/.python-version'
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run web:lint
+      - name: Type check
+        run: npm run typecheck --workspace @sidequestd/web
+      - name: Test
+        run: npm run web:test
+      - name: Build
+        run: npm run web:build
 
-      - name: Install UV
-        uses: astral-sh/setup-uv@v4
+  images:
+    name: Production images
+    runs-on: ubuntu-latest
 
-      - name: Install dependencies
-        working-directory: backend
-        run: uv sync --frozen
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the API image
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/api
+          # Loading into the daemon is what makes the smoke test below possible;
+          # nothing is pushed from CI.
+          load: true
+          tags: sidequestd-api:ci
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+      - name: Build the web image
+        uses: docker/build-push-action@v6
+        with:
+          # The repo root, not apps/web: it is an npm workspace.
+          context: .
+          file: apps/web/Dockerfile
+          load: true
+          tags: sidequestd-web:ci
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+      - name: A production image must refuse a development default
+        run: |
+          # Exits non-zero before touching the database. Catches a guardrail
+          # that stops firing as much as one that fires when it should not.
+          if docker run --rm -e ENVIRONMENT=production sidequestd-api:ci migrate; then
+            echo "::error::the API booted in production with development defaults"
+            exit 1
+          fi
 
-      - name: Run linting
-        working-directory: backend
-        run: sh scripts/lint.sh
+  types-in-sync:
+    name: Generated types are current
+    runs-on: ubuntu-latest
 
-      - name: Run tests
-        working-directory: backend
-        run: sh scripts/pytest.sh
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          working-directory: apps/api
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: uv sync --all-extras
+        working-directory: apps/api
+      - name: Regenerate and diff
+        run: |
+          npm run gen:types
+          # Fails when someone changed an endpoint without running gen:types.
+          git diff --exit-code packages/api-types
+
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    # Every other job has to be green. `needs` is what makes this a deploy
+    # pipeline rather than four checks and an unrelated deploy running beside
+    # them.
+    needs: [api, web, images, types-in-sync]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      # Repository *variables*, not secrets: these are public URLs, they are
+      # compiled into the client bundle, and a wrong one is the easiest way to
+      # ship a web app that cannot reach its API. Keeping them readable in the
+      # logs is the point.
+      API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+      MEDIA_URL: ${{ vars.NEXT_PUBLIC_MEDIA_URL }}
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Check the deploy configuration is present
+        run: |
+          # An unset variable would not fail the build — it would fall back to
+          # the localhost default in next.config.ts and ship a broken bundle.
+          : "${FLY_API_TOKEN:?set the FLY_API_TOKEN repository secret}"
+          : "${API_URL:?set the NEXT_PUBLIC_API_URL repository variable}"
+          : "${MEDIA_URL:?set the NEXT_PUBLIC_MEDIA_URL repository variable}"
+          echo "api=$API_URL media=$MEDIA_URL"
+
+      # The API goes first. Its release command runs the migration, and if that
+      # fails the deploy aborts — which has to stop the web deploy too, rather
+      # than leaving a new client talking to an old schema.
+      - name: Deploy the API
+        run: |
+          flyctl deploy apps/api \
+            --config apps/api/fly.toml \
+            --remote-only
+
+      - name: Deploy the web client
+        run: |
+          flyctl deploy . \
+            --config fly.web.toml \
+            --remote-only \
+            --build-arg NEXT_PUBLIC_API_URL="$API_URL" \
+            --build-arg NEXT_PUBLIC_MEDIA_URL="$MEDIA_URL"
+
+      - name: Smoke test
+        run: |
+          # --retry-all-errors so a machine still coming out of suspend is a
+          # retry rather than a failed deploy.
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "$API_URL/health"
+          echo
+          # Production must not be serving the interactive schema browser.
+          docs="$(curl -s -o /dev/null -w '%{http_code}' "$API_URL/docs")"
+          test "$docs" = "404" || { echo "::error::/docs returned $docs, expected 404"; exit 1; }

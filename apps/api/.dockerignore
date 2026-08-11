@@ -1,0 +1,33 @@
+# Build context for apps/api/Dockerfile. Everything the image needs is listed
+# explicitly by the Dockerfile's COPY steps, so this is about keeping the
+# context small and keeping local state — a developer's .env above all — from
+# being uploaded to the daemon or baked into a layer.
+
+# Local secrets. The image is configured from the environment at run time.
+.env
+.env.*
+!.env.example
+
+# A host virtualenv holds macOS/Linux-specific binaries; the image builds its own.
+.venv/
+venv/
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Not part of the runtime image: tests, and the build and deploy configuration.
+tests/
+Dockerfile
+.dockerignore
+fly.toml
+
+.git/
+.gitignore
+.idea/
+.vscode/
+.DS_Store

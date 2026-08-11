@@ -1,0 +1,8 @@
+Alembic migrations for the Sidequestd API.
+
+  uv run alembic upgrade head            # apply
+  uv run alembic downgrade -1            # roll back one
+  uv run alembic revision --autogenerate -m "message"
+
+Autogenerate diffs against app.models.Base.metadata; always read the generated
+file before committing it.

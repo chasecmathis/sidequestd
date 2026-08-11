@@ -1,0 +1,51 @@
+# Ignore rules for any build whose context is the repo root — which today means
+# apps/web/Dockerfile, since the web app is an npm workspace and its lockfile
+# and packages/api-types both live above it.
+#
+# It sits here rather than beside that Dockerfile because two builders have to
+# read it: BuildKit locally and in CI, and Fly's remote builder on deploy. Only
+# BuildKit understands the `<dockerfile>.dockerignore` convention; both fall
+# back to `.dockerignore` at the context root.
+#
+# This is load-bearing, not just a size optimisation: `COPY apps/web ./apps/web`
+# would otherwise drop the host's macOS-native node_modules and a stale .next on
+# top of the ones the deps stage installed.
+#
+# The API image has its own context (apps/api) and its own apps/api/.dockerignore;
+# nothing here applies to it.
+
+**/node_modules/
+**/.next/
+**/.turbo/
+**/dist/
+**/out/
+**/build/
+**/*.tsbuildinfo
+
+# Local secrets. The runtime image is configured from the environment, and the
+# NEXT_PUBLIC_* values come in as build args.
+**/.env
+**/.env.*
+!**/.env.example
+
+# Python: the API has its own image and none of this belongs in the web context.
+apps/api/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+# Expo app, not part of the web build.
+apps/mobile/
+**/.expo/
+
+.git/
+.github/
+.idea/
+.vscode/
+.claude/
+**/.DS_Store
+infra/
+fly.web.toml
+*.md
