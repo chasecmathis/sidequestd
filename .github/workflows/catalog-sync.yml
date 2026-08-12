@@ -14,11 +14,14 @@ name: Catalog sync
 
 on:
   schedule:
-    # 07:00 UTC. GitHub cron is UTC with no DST handling, so this lands at 02:00
-    # or 03:00 America/New_York depending on the season — close enough for a
-    # catalog refresh. Scheduled runs on shared runners can also start well late
-    # under load, so treat the time as a hint rather than a guarantee.
-    - cron: "0 7 * * *"
+    # Sundays at 07:00 UTC. Weekly rather than nightly: a full walk burns the
+    # better part of an hour of Fly machine time, and at our current size the
+    # catalog does not move fast enough to justify paying for that every day.
+    # GitHub cron is UTC with no DST handling, so this lands at 02:00 or 03:00
+    # America/New_York depending on the season — close enough for a catalog
+    # refresh. Scheduled runs on shared runners can also start well late under
+    # load, so treat the time as a hint rather than a guarantee.
+    - cron: "0 7 * * 0"
   workflow_dispatch:
     inputs:
       after_id:
@@ -193,7 +196,7 @@ jobs:
           done
 
           if [ "$result" = "unknown" ]; then
-            # Never pass on a result we could not read: a silent nightly failure
+            # Never pass on a result we could not read: a silent weekly failure
             # is the whole thing this step exists to prevent.
             echo "::error::could not read the sync's exit event"
             exit 1
