@@ -115,7 +115,8 @@ describe("EditReviewPage", () => {
     render(<EditReviewPage />);
 
     expect(await screen.findByLabelText("Review")).toHaveValue("Solid.");
-    expect(screen.getByLabelText("Playtime")).toHaveValue(120);
+    // Stored as 120 minutes, edited as 2 hours.
+    expect(screen.getByLabelText("Playtime")).toHaveValue(2);
     expect(screen.getByRole("radio", { name: "4 out of 5 stars" })).toBeChecked();
   });
 
@@ -146,6 +147,38 @@ describe("EditReviewPage", () => {
         method: "PATCH",
         body: { rating: 4, review_text: "Solid.", playtime_minutes: 120 },
       }),
+    );
+  });
+
+  it("sends the edited hours back as minutes", async () => {
+    render(<EditReviewPage />);
+    await screen.findByLabelText("Review");
+
+    const playtime = screen.getByLabelText("Playtime");
+    await userEvent.clear(playtime);
+    await userEvent.type(playtime, "15.5");
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() =>
+      expect(authedRequest).toHaveBeenCalledWith(
+        "/reviews/r1",
+        expect.objectContaining({ body: expect.objectContaining({ playtime_minutes: 930 }) }),
+      ),
+    );
+  });
+
+  it("clears the playtime when the field is emptied", async () => {
+    render(<EditReviewPage />);
+    await screen.findByLabelText("Review");
+
+    await userEvent.clear(screen.getByLabelText("Playtime"));
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() =>
+      expect(authedRequest).toHaveBeenCalledWith(
+        "/reviews/r1",
+        expect.objectContaining({ body: expect.objectContaining({ playtime_minutes: null }) }),
+      ),
     );
   });
 

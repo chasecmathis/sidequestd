@@ -8,6 +8,8 @@ import {
   formatStars,
   isProcessing,
   isVideo,
+  minutesToPlaytimeInput,
+  playtimeToMinutes,
   rejectMedia,
   reviewPath,
   starFill,
@@ -55,28 +57,68 @@ describe("formatPlaytime", () => {
     expect(formatPlaytime(60)).toBe("1h");
   });
 
-  it("drops to minutes below an hour", () => {
-    // Rounding a short session to "0h" would read as "never played it".
-    expect(formatPlaytime(45)).toBe("45m");
-    expect(formatPlaytime(59)).toBe("59m");
+  it("stays in hours below an hour", () => {
+    expect(formatPlaytime(45)).toBe("0.8h");
+    expect(formatPlaytime(30)).toBe("0.5h");
   });
 
-  it("rolls over into days", () => {
-    expect(formatPlaytime(24 * 60)).toBe("1d");
-    expect(formatPlaytime(25 * 60)).toBe("1d 1h");
-    expect(formatPlaytime(10_000)).toBe("6d 23h");
+  it("stays in hours above a day, however large the figure gets", () => {
+    // The whole point of the change: one unit at every scale, so two playtimes
+    // can be compared without converting one of them first.
+    expect(formatPlaytime(24 * 60)).toBe("24h");
+    expect(formatPlaytime(25 * 60)).toBe("25h");
+    expect(formatPlaytime(30_000)).toBe("500h");
   });
 
-  it("carries a rounded-up remainder into the day count", () => {
-    // 47.9h leaves 23.9 hours, which rounds to 24 — that is a second day, not
-    // "1d 24h".
-    expect(formatPlaytime(Math.round(47.9 * 60))).toBe("2d");
+  it("floors a tracked session at 0.1h rather than rounding it to nothing", () => {
+    // "0h" would say what null already says — that they did not track it.
+    expect(formatPlaytime(5)).toBe("0.1h");
+    expect(formatPlaytime(1)).toBe("0.1h");
   });
 
   it("is null when nothing was tracked", () => {
-    // SPEC §6.3 makes playtime optional, and "0m" would claim they played none.
+    // SPEC §6.3 makes playtime optional, and "0h" would claim they played none.
     expect(formatPlaytime(null)).toBeNull();
     expect(formatPlaytime(0)).toBeNull();
+  });
+});
+
+describe("playtimeToMinutes", () => {
+  it("converts typed hours into the minutes the API stores", () => {
+    expect(playtimeToMinutes("15.5")).toBe(930);
+    expect(playtimeToMinutes("2")).toBe(120);
+    expect(playtimeToMinutes("1.25")).toBe(75);
+  });
+
+  it("rounds to a whole minute, because the API takes an integer", () => {
+    expect(playtimeToMinutes("0.999")).toBe(60);
+  });
+
+  it("is null for anything that is not a positive number", () => {
+    // All of these mean "not tracked", which the payload spells as null.
+    expect(playtimeToMinutes("")).toBeNull();
+    expect(playtimeToMinutes("0")).toBeNull();
+    expect(playtimeToMinutes("-3")).toBeNull();
+    expect(playtimeToMinutes("abc")).toBeNull();
+  });
+});
+
+describe("minutesToPlaytimeInput", () => {
+  it("prefills the edit form in hours", () => {
+    expect(minutesToPlaytimeInput(930)).toBe("15.5");
+    expect(minutesToPlaytimeInput(120)).toBe("2");
+    expect(minutesToPlaytimeInput(75)).toBe("1.25");
+  });
+
+  it("is blank when there is nothing to edit", () => {
+    expect(minutesToPlaytimeInput(null)).toBe("");
+    expect(minutesToPlaytimeInput(0)).toBe("");
+  });
+
+  it("round-trips back to the minutes it came from", () => {
+    for (const minutes of [1, 30, 45, 75, 120, 930, 30_000]) {
+      expect(playtimeToMinutes(minutesToPlaytimeInput(minutes))).toBe(minutes);
+    }
   });
 });
 

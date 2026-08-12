@@ -15,7 +15,7 @@ export const MAX_RATING = 10;
 export const MAX_MEDIA_PER_REVIEW = 10;
 export const REVIEW_TEXT_MAX_LENGTH = 5000;
 
-const HOURS_PER_DAY = 24;
+const MINUTES_PER_HOUR = 60;
 
 const MEGABYTE = 1024 * 1024;
 export const MAX_IMAGE_BYTES = 15 * MEGABYTE;
@@ -45,30 +45,51 @@ export function starFill(rating: number, index: number): number {
 }
 
 /**
- * "15.5h", "6d 22h", or null when the author did not track it (SPEC §6.3).
+ * "15.5h", "500h", or null when the author did not track it (SPEC §6.3).
  *
- * Playtime is counted in hours, so hours are the unit and days take over once a
- * figure stops being readable in them — "173.5h" is hard to picture, "7d 5h" is
- * not. Stored in minutes because that is what the API takes, but a bare minute
- * count is only shown below an hour, where rounding to "0h" would be worse than
- * useless.
+ * Hours, and only hours. This used to switch units by magnitude — "45m" below an
+ * hour, "15.5h" in the middle, "6d 22h" above a day — which meant two playtimes
+ * could rarely be compared without doing arithmetic first, and "6d 22h" invited
+ * reading a wall-clock span rather than time at the controls. Players talk about
+ * games in hours at every scale, so that is the only unit here. Long numbers are
+ * the price, and "500h" says something "20d 20h" does not.
+ *
+ * Minutes remain the storage unit because that is what the API takes; the three
+ * functions below are the whole width of that boundary.
  */
 export function formatPlaytime(minutes: number | null): string | null {
   if (minutes === null || minutes <= 0) return null;
 
-  const hours = minutes / 60;
-  if (hours < 1) return `${Math.round(minutes)}m`;
-  // One decimal, and no trailing ".0": "15.5h" but "2h".
-  if (hours < HOURS_PER_DAY) return `${Math.round(hours * 10) / 10}h`;
+  // One decimal, no trailing ".0": "15.5h" but "2h". Floored at 0.1 rather than
+  // rounded to 0, because a tracked five-minute session displayed as "0h" would
+  // read as "never played it" — the one thing null already means.
+  const hours = Math.max(Math.round((minutes / MINUTES_PER_HOUR) * 10) / 10, 0.1);
+  return `${hours}h`;
+}
 
-  let days = Math.floor(hours / HOURS_PER_DAY);
-  let rest = Math.round(hours % HOURS_PER_DAY);
-  if (rest === HOURS_PER_DAY) {
-    // 47.9h rounds to 24 remaining hours, which is a day, not "1d 24h".
-    days += 1;
-    rest = 0;
-  }
-  return rest === 0 ? `${days}d` : `${days}d ${rest}h`;
+/**
+ * Hours as the author typed them → the minutes the API stores.
+ *
+ * Returns null for anything that is not a positive number, which is what the
+ * payload uses for "not tracked" — an empty field, a stray minus sign and a
+ * typed "0" all mean the same thing here.
+ */
+export function playtimeToMinutes(hours: string): number | null {
+  const value = Number.parseFloat(hours);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return Math.round(value * MINUTES_PER_HOUR);
+}
+
+/**
+ * The minutes the API returned → the hours the edit form starts with.
+ *
+ * Two decimals: enough to round-trip any whole number of minutes closely, and
+ * short enough that 75 minutes prefills as "1.25" rather than as a float with a
+ * tail of noise on it.
+ */
+export function minutesToPlaytimeInput(minutes: number | null): string {
+  if (minutes === null || minutes <= 0) return "";
+  return String(Math.round((minutes / MINUTES_PER_HOUR) * 100) / 100);
 }
 
 export function reviewPath(id: string): string {

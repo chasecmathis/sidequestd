@@ -149,6 +149,22 @@ describe("NewReviewPage", () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith("/reviews/r1"));
   });
 
+  it("posts the playtime as minutes, having asked for hours", async () => {
+    await pickPreselectedGame();
+    authedRequest.mockResolvedValue({ id: "r1" });
+
+    await userEvent.click(screen.getByRole("radio", { name: "4.5 out of 5 stars" }));
+    await userEvent.type(screen.getByLabelText("Playtime"), "15.5");
+    await userEvent.click(screen.getByRole("button", { name: "Post review" }));
+
+    await waitFor(() =>
+      expect(authedRequest).toHaveBeenCalledWith(
+        "/reviews",
+        expect.objectContaining({ body: expect.objectContaining({ playtime_minutes: 930 }) }),
+      ),
+    );
+  });
+
   it("sends an empty review as null rather than an empty string", async () => {
     // The API's minimum-length rule rejects "", and "no text" is what null means.
     await pickPreselectedGame();

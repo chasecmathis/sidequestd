@@ -74,11 +74,12 @@ describe("formatAverageRating", () => {
 describe("formatPlaytime", () => {
   it.each([
     [0, "—"],
-    [45, "45m"],
+    [45, "0.8h"],
     [120, "2h"],
     [750, "12.5h"],
-    // A profile sums every review, so this is the figure that gets large.
-    [30_000, "20d 20h"],
+    // A profile sums every review, so this is the figure that gets large — and
+    // it stays in hours, which is the point.
+    [30_000, "500h"],
   ])("formats %i minutes as %s", (minutes, expected) => {
     expect(formatPlaytime(minutes)).toBe(expected);
   });

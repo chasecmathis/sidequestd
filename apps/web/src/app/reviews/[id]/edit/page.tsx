@@ -28,8 +28,9 @@ import {
   ACCEPTED_MEDIA,
   MAX_MEDIA_PER_REVIEW,
   REVIEW_TEXT_MAX_LENGTH,
-  formatPlaytime,
   isVideo,
+  minutesToPlaytimeInput,
+  playtimeToMinutes,
   rejectMedia,
   reviewPath,
   tally,
@@ -71,7 +72,8 @@ export default function EditReviewPage() {
         setReview(body);
         setRating(body.rating);
         setText(body.review_text ?? "");
-        setPlaytime(body.playtime_minutes === null ? "" : String(body.playtime_minutes));
+        // Stored in minutes, edited in hours.
+        setPlaytime(minutesToPlaytimeInput(body.playtime_minutes));
       })
       .catch((cause: unknown) => {
         if (!cancelled) {
@@ -97,12 +99,11 @@ export default function EditReviewPage() {
     setError(null);
     setSaved(null);
 
-    const minutes = Number.parseInt(playtime, 10);
     const payload: ReviewUpdate = {
       rating,
       // Trimmed-empty means "clear it", which the API spells as null.
       review_text: text.trim() || null,
-      playtime_minutes: Number.isFinite(minutes) && minutes > 0 ? minutes : null,
+      playtime_minutes: playtimeToMinutes(playtime),
     };
 
     try {
@@ -194,9 +195,6 @@ export default function EditReviewPage() {
     );
   }
 
-  const minutes = Number.parseInt(playtime, 10);
-  const playtimeLabel = Number.isFinite(minutes) ? formatPlaytime(minutes) : null;
-
   return (
     <AppShell>
       <div className="mx-auto max-w-xl">
@@ -233,12 +231,12 @@ export default function EditReviewPage() {
             label="Playtime"
             type="number"
             min={0}
-            inputMode="numeric"
+            step="any"
+            inputMode="decimal"
             value={playtime}
+            placeholder="15.5"
             onChange={(event) => setPlaytime(event.target.value)}
-            hint={
-              playtimeLabel ? `Minutes — that's ${playtimeLabel}.` : "Minutes played. Optional."
-            }
+            hint="Hours played. Optional."
           />
 
           <FormError message={error} />

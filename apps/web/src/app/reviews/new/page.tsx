@@ -30,7 +30,7 @@ import {
   ACCEPTED_MEDIA,
   MAX_MEDIA_PER_REVIEW,
   REVIEW_TEXT_MAX_LENGTH,
-  formatPlaytime,
+  playtimeToMinutes,
   rejectMedia,
   reviewPath,
   tally,
@@ -205,12 +205,12 @@ function NewReviewForm() {
     try {
       let id = reviewId;
       if (id === null) {
-        const minutes = Number.parseInt(playtime, 10);
         const payload: ReviewCreate = {
           game_id: game.id,
           rating,
           review_text: text.trim() || null,
-          playtime_minutes: Number.isFinite(minutes) && minutes > 0 ? minutes : null,
+          // Typed in hours, stored in minutes.
+          playtime_minutes: playtimeToMinutes(playtime),
         };
         const created = await authedRequest<ReviewDetail>("/reviews", {
           method: "POST",
@@ -241,9 +241,6 @@ function NewReviewForm() {
   if (isLoading || !user) {
     return <ListSkeleton count={1} label="Loading" />;
   }
-
-  const minutes = Number.parseInt(playtime, 10);
-  const playtimeLabel = Number.isFinite(minutes) ? formatPlaytime(minutes) : null;
 
   return (
     <div className="mx-auto max-w-xl">
@@ -310,15 +307,19 @@ function NewReviewForm() {
           <p className="text-xs text-fg-faint">Optional.</p>
         </div>
 
+        {/* Hours, matching how playtime reads everywhere else. `step="any"`
+            rather than a half-hour step so "1.25" is accepted as typed; the
+            arrows still move in whole hours, which is the common case. */}
         <Field
           label="Playtime"
           type="number"
           min={0}
-          inputMode="numeric"
+          step="any"
+          inputMode="decimal"
           value={playtime}
-          placeholder="930"
+          placeholder="15.5"
           onChange={(event) => setPlaytime(event.target.value)}
-          hint={playtimeLabel ? `Minutes — that's ${playtimeLabel}.` : "Minutes played. Optional."}
+          hint="Hours played. Optional."
         />
 
         <div className="space-y-2">
