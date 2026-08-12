@@ -18,6 +18,42 @@ export function profilePath(username: string): string {
   return `/profile/${username}`;
 }
 
+/**
+ * How many games a profile may pin.
+ *
+ * Mirrors `MAX_FAVORITE_GAMES` in the API (`app/models/user.py`), which is the
+ * authority — this copy exists so the editor can draw the empty slots and refuse
+ * a seventh *before* the request, rather than surfacing the 409 as an error. If
+ * the two ever disagree the server still wins; the cost is a stale-looking grid,
+ * not a wrong write.
+ */
+export const MAX_FAVORITE_GAMES = 6;
+
+/** The slot numerals, `01`–`06`, matching the mono numbering used elsewhere. */
+export function slotLabel(index: number): string {
+  return String(index + 1).padStart(2, "0");
+}
+
+/**
+ * One step of a reorder, as the ids the API wants back.
+ *
+ * `PUT /users/me/favorites` takes the *whole* list as a permutation rather than
+ * a (from, to) pair, so this returns the full array. Out-of-range moves return
+ * the input untouched, which is what lets the first and last slots render their
+ * arrows as ordinary disabled buttons instead of conditionally omitting them —
+ * a control that vanishes at the end of a list is a moving target.
+ */
+export function moveFavorite<T>(items: T[], from: number, to: number): T[] {
+  if (from === to) return items;
+  if (from < 0 || from >= items.length) return items;
+  if (to < 0 || to >= items.length) return items;
+
+  const next = [...items];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+}
+
 /** "1,204" — thousands separators, because follower counts get large. */
 export function formatCount(value: number): string {
   return value.toLocaleString("en-US");

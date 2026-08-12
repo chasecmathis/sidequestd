@@ -21,6 +21,7 @@ import { useEffect, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
 import { Avatar } from "@/components/avatar";
+import { FavoriteGames } from "@/components/favorite-games";
 import { FollowButton, RemoveFollowerButton } from "@/components/follow-button";
 import { GameCard } from "@/components/game-card";
 import { ReviewGrid } from "@/components/review-tile";
@@ -35,6 +36,7 @@ import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { BACKLOG_ORDER, emptyListMessage, entriesOn, listName } from "@/lib/backlog";
 import { distributionHeights, formatCount, statTiles } from "@/lib/profile";
+import { followListPath } from "@/lib/social";
 import type {
   BacklogLists,
   FollowState,
@@ -308,45 +310,43 @@ export default function ProfilePage() {
             </p>
           ) : null}
 
+          {/* Links, not text. The counts were the only place on the profile that
+              named a set of people and then offered no way to see them. Each
+              one carries its own accessible name rather than relying on the
+              visible "1,204 followers" reading, because the number and the word
+              are separate nodes and a screen reader would run them together
+              with whatever follows. */}
           <ul className="mt-5 flex gap-7">
-            <li className="type-eyebrow text-fg-faint">
-              <span className="mr-1.5 text-sm tabular-nums text-fg">
-                {formatCount(profile.follower_count)}
-              </span>
-              followers
-            </li>
-            <li className="type-eyebrow text-fg-faint">
-              <span className="mr-1.5 text-sm tabular-nums text-fg">
-                {formatCount(profile.following_count)}
-              </span>
-              following
-            </li>
+            {(
+              [
+                { direction: "followers", count: profile.follower_count },
+                { direction: "following", count: profile.following_count },
+              ] as const
+            ).map(({ direction, count }) => (
+              <li key={direction}>
+                <Link
+                  href={followListPath(profile.username, direction)}
+                  aria-label={`${count} ${direction}`}
+                  className="type-eyebrow group flex items-baseline gap-1.5 text-fg-faint transition-colors duration-150 hover:text-fg-dim"
+                >
+                  <span className="link-quiet text-sm tabular-nums text-fg">
+                    {formatCount(count)}
+                  </span>
+                  {direction}
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
       </header>
 
       {profile.can_view_content ? (
         <>
-          <section className="mt-14">
-            <Eyebrow as="h2" rule className="mb-5">
-              Favorite games
-            </Eyebrow>
-            {profile.favorite_games.length > 0 ? (
-              <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-                {profile.favorite_games.map((entry) => (
-                  <li key={entry.game.id}>
-                    <GameCard game={entry.game} />
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <EmptyState
-                description={
-                  profile.is_viewer ? "You haven't pinned any games yet." : "No pinned games yet."
-                }
-              />
-            )}
-          </section>
+          <FavoriteGames
+            entries={profile.favorite_games}
+            isViewer={profile.is_viewer}
+            username={profile.username}
+          />
 
           {profile.stats ? <Stats stats={profile.stats} /> : null}
 

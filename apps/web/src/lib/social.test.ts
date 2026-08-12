@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  emptyFollowMessage,
   followActionLabel,
   followLabel,
+  followListLabel,
+  followListPath,
+  followListQuery,
   followRequest,
   followUndoes,
   followerDelta,
@@ -85,5 +89,52 @@ describe("followerDelta", () => {
 describe("handle", () => {
   it("prefixes the at-sign", () => {
     expect(handle({ username: "ripley" })).toBe("@ripley");
+  });
+});
+
+describe("followListPath", () => {
+  it("points at the two sides of a profile", () => {
+    expect(followListPath("ripley", "followers")).toBe("/profile/ripley/followers");
+    expect(followListPath("ripley", "following")).toBe("/profile/ripley/following");
+  });
+
+  it("escapes a handle so it cannot break out of the path", () => {
+    expect(followListPath("a b", "followers")).toBe("/profile/a%20b/followers");
+  });
+});
+
+describe("followListQuery", () => {
+  it("asks the API by id, which is what the list endpoints take", () => {
+    expect(followListQuery("u1", "followers")).toBe("/users/u1/followers");
+    expect(followListQuery("u1", "following")).toBe("/users/u1/following");
+  });
+
+  it("carries a cursor when there is one", () => {
+    expect(followListQuery("u1", "following", "next")).toBe("/users/u1/following?cursor=next");
+  });
+
+  it("omits an absent cursor rather than sending cursor=null", () => {
+    expect(followListQuery("u1", "followers", null)).toBe("/users/u1/followers");
+  });
+});
+
+describe("followListLabel", () => {
+  it("names each side", () => {
+    expect(followListLabel("followers")).toBe("Followers");
+    expect(followListLabel("following")).toBe("Following");
+  });
+});
+
+describe("emptyFollowMessage", () => {
+  it("invites the owner rather than reporting a fact at them", () => {
+    expect(emptyFollowMessage("following", true, "ripley")).toMatch(/^You aren't following anyone/);
+    expect(emptyFollowMessage("followers", true, "ripley")).toMatch(/^Nobody follows you/);
+  });
+
+  it("names the other person when the profile is not the viewer's", () => {
+    expect(emptyFollowMessage("followers", false, "ripley")).toBe("Nobody follows @ripley yet.");
+    expect(emptyFollowMessage("following", false, "ripley")).toBe(
+      "@ripley isn't following anyone yet.",
+    );
   });
 });

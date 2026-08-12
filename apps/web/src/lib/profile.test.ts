@@ -3,12 +3,15 @@ import { describe, expect, it } from "vitest";
 import type { ProfileStats } from "@sidequestd/api-types";
 
 import {
+  MAX_FAVORITE_GAMES,
   avatarInitial,
   distributionHeights,
   formatAverageRating,
   formatCount,
   formatPlaytime,
+  moveFavorite,
   profilePath,
+  slotLabel,
   statTiles,
 } from "./profile";
 
@@ -112,5 +115,47 @@ describe("distributionHeights", () => {
 
   it("gives a flat baseline instead of dividing by zero", () => {
     expect(distributionHeights(stats())).toEqual(Array.from({ length: 10 }, () => 0));
+  });
+});
+
+describe("slotLabel", () => {
+  it("pads to two digits, so the numerals line up in a row", () => {
+    expect(slotLabel(0)).toBe("01");
+    expect(slotLabel(5)).toBe("06");
+  });
+});
+
+describe("moveFavorite", () => {
+  it("moves an item later and closes the gap behind it", () => {
+    expect(moveFavorite(["a", "b", "c", "d"], 0, 2)).toEqual(["b", "c", "a", "d"]);
+  });
+
+  it("moves an item earlier", () => {
+    expect(moveFavorite(["a", "b", "c", "d"], 3, 1)).toEqual(["a", "d", "b", "c"]);
+  });
+
+  it("returns the list untouched when the move runs off either end", () => {
+    // The first slot's "move left" and the last slot's "move right" both land
+    // here, which is what lets them render as ordinary disabled buttons.
+    const items = ["a", "b", "c"];
+    expect(moveFavorite(items, 0, -1)).toEqual(items);
+    expect(moveFavorite(items, 2, 3)).toEqual(items);
+  });
+
+  it("is a no-op when the item does not move", () => {
+    const items = ["a", "b", "c"];
+    expect(moveFavorite(items, 1, 1)).toEqual(items);
+  });
+
+  it("does not mutate the array it was given", () => {
+    const items = ["a", "b", "c"];
+    moveFavorite(items, 0, 2);
+    expect(items).toEqual(["a", "b", "c"]);
+  });
+
+  it("keeps every item, because the API wants a permutation", () => {
+    const moved = moveFavorite(["a", "b", "c", "d", "e", "f"], 4, 0);
+    expect([...moved].sort()).toEqual(["a", "b", "c", "d", "e", "f"]);
+    expect(moved).toHaveLength(MAX_FAVORITE_GAMES);
   });
 });

@@ -12,6 +12,59 @@ export const FOLLOW_REQUESTS_PATH = "/follow/requests";
 /** One screenful of requests. There is no paging control on that screen yet. */
 export const REQUESTS_PAGE_SIZE = 20;
 
+/** The two sides of the follow graph, as the URL and the API both spell them. */
+export type FollowDirection = "followers" | "following";
+
+/** Where the profile's counts link to. */
+export function followListPath(username: string, direction: FollowDirection): string {
+  return `/profile/${encodeURIComponent(username)}/${direction}`;
+}
+
+/**
+ * The API request for one page of either side.
+ *
+ * Keyed by user *id* rather than handle: the list endpoints take an id, while
+ * the profile that sent the reader here is addressed by handle (SPEC §6.2), so
+ * the id has to come from the profile payload.
+ */
+export function followListQuery(
+  userId: string,
+  direction: FollowDirection,
+  cursor?: string | null,
+): string {
+  const params = new URLSearchParams();
+  if (cursor) params.set("cursor", cursor);
+  const query = params.toString();
+  return `/users/${userId}/${direction}${query ? `?${query}` : ""}`;
+}
+
+/** The heading, and the tab. Kept here so the route and the switch cannot drift. */
+export function followListLabel(direction: FollowDirection): string {
+  return direction === "followers" ? "Followers" : "Following";
+}
+
+/**
+ * What an empty list should say, which depends on whose it is and which side.
+ *
+ * Four sentences rather than one generic "No users": "You aren't following
+ * anyone yet" is an invitation, and "Nobody follows ripley yet" is a fact about
+ * someone else — collapsing them into one loses both.
+ */
+export function emptyFollowMessage(
+  direction: FollowDirection,
+  isViewer: boolean,
+  username: string,
+): string {
+  if (direction === "followers") {
+    return isViewer
+      ? "Nobody follows you yet. Reviews are how people find you."
+      : `Nobody follows @${username} yet.`;
+  }
+  return isViewer
+    ? "You aren't following anyone yet. Find people from a review or from search."
+    : `@${username} isn't following anyone yet.`;
+}
+
 /** What the button reads in each state (SPEC §6.2 names all three). */
 export function followLabel(state: FollowState): string {
   switch (state) {
