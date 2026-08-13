@@ -506,3 +506,111 @@ async def test_someone_elses_review_is_not_yours_to_delete(
 
     assert response.status_code == 403
     assert (await client.get(f"{REVIEWS}/{review['id']}")).status_code == 200
+
+
+# --- The game's average (SPEC §5) -------------------------------------------
+#
+# Read back through the games endpoint rather than off the ORM object, so these
+# prove the figure reached the database and not merely an attribute in session.
+
+GAMES = "/api/v1/games"
+
+
+async def game_scores(client: AsyncClient, game: Game) -> tuple[float | None, int]:
+    body = (await client.get(f"{GAMES}/{game.id}")).json()
+    return body["rating_average"], body["rating_count"]
+
+
+async def test_a_review_moves_the_game_s_average(
+    client: AsyncClient, headers: dict[str, str], catalog: list[Game]
+) -> None:
+    assert await game_scores(client, catalog[0]) == (None, 0)
+
+    await post_review(client, headers, catalog[0], rating=8)
+
+    assert await game_scores(client, catalog[0]) == (8.0, 1)
+
+
+async def test_the_average_is_the_mean_of_every_review(
+    client: AsyncClient,
+    headers: dict[str, str],
+    catalog: list[Game],
+    make_user: MakeUser,
+    auth_headers: AuthHeaders,
+) -> None:
+    await post_review(client, headers, catalog[0], rating=8)
+    await post_review(client, auth_headers(await make_user("vasquez")), catalog[0], rating=6)
+
+    assert await game_scores(client, catalog[0]) == (7.0, 2)
+
+
+async def test_editing_a_rating_moves_the_average(
+    client: AsyncClient, headers: dict[str, str], catalog: list[Game]
+) -> None:
+    review = await post_review(client, headers, catalog[0], rating=8)
+
+    await client.patch(f"{REVIEWS}/{review['id']}", headers=headers, json={"rating": 4})
+
+    assert await game_scores(client, catalog[0]) == (4.0, 1)
+
+
+async def test_editing_only_the_text_leaves_the_average_alone(
+    client: AsyncClient, headers: dict[str, str], catalog: list[Game]
+) -> None:
+    """Guards the gate: a text-only PATCH should not touch the game at all."""
+    review = await post_review(client, headers, catalog[0], rating=8)
+
+    await client.patch(
+        f"{REVIEWS}/{review['id']}", headers=headers, json={"review_text": "Second thoughts."}
+    )
+
+    assert await game_scores(client, catalog[0]) == (8.0, 1)
+
+
+async def test_deleting_the_last_review_leaves_no_average_rather_than_zero(
+    client: AsyncClient, headers: dict[str, str], catalog: list[Game]
+) -> None:
+    """The regression this feature is most likely to grow: 0.0 would draw one star."""
+    review = await post_review(client, headers, catalog[0], rating=8)
+
+    await client.delete(f"{REVIEWS}/{review['id']}", headers=headers)
+
+    assert await game_scores(client, catalog[0]) == (None, 0)
+
+
+async def test_rating_one_game_leaves_the_others_alone(
+    client: AsyncClient, headers: dict[str, str], catalog: list[Game]
+) -> None:
+    await post_review(client, headers, catalog[0], rating=8)
+
+    assert await game_scores(client, catalog[1]) == (None, 0)
+
+
+async def test_the_count_is_recomputed_rather_than_incremented(
+    client: AsyncClient,
+    headers: dict[str, str],
+    catalog: list[Game],
+    make_user: MakeUser,
+    make_review: Callable[..., Awaitable[Review]],
+) -> None:
+    """A review the service never saw still has to be counted.
+
+    An increment would report 1 here — right only by luck, and permanently wrong
+    the first time any other path writes a review.
+    """
+    await make_review(await make_user("hicks"), game=catalog[0], rating=6)
+
+    await post_review(client, headers, catalog[0], rating=8)
+
+    assert await game_scores(client, catalog[0]) == (7.0, 2)
+
+
+async def test_the_new_review_s_own_response_already_carries_the_average(
+    client: AsyncClient, headers: dict[str, str], catalog: list[Game]
+) -> None:
+    """`expire_on_commit=False` would otherwise serialise the pre-review figures."""
+    review = await post_review(client, headers, catalog[0], rating=8)
+
+    game = review["game"]
+    assert game["rating_average"] == 8.0  # type: ignore[index]
+    assert game["rating_count"] == 1  # type: ignore[index]

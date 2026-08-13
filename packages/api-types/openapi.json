@@ -4287,6 +4287,48 @@
             "type": "array",
             "title": "Platforms"
           },
+          "rating_average": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Average",
+            "description": "Mean sidequestd rating, on the stored 1-10 scale. Null until somebody rates it \u2014 the mean of nothing is not zero."
+          },
+          "rating_count": {
+            "type": "integer",
+            "title": "Rating Count",
+            "description": "How many sidequestd reviews the average is taken over",
+            "default": 0
+          },
+          "igdb_rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Igdb Rating",
+            "description": "IGDB's blended critic-and-user score, 0-100. Deliberately not converted to the 1-10 scale: it is a different measurement by a different population, and clients render it as one. Null when IGDB has no score for the game, or when the weekly catalog sync has not reached this row yet."
+          },
+          "igdb_rating_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Igdb Rating Count",
+            "description": "How many IGDB ratings their score is over. Null, rather than 0, because 'nobody rated it upstream' and 'we have not asked yet' are different."
+          },
           "summary": {
             "anyOf": [
               {
@@ -4418,6 +4460,48 @@
             },
             "type": "array",
             "title": "Platforms"
+          },
+          "rating_average": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Average",
+            "description": "Mean sidequestd rating, on the stored 1-10 scale. Null until somebody rates it \u2014 the mean of nothing is not zero."
+          },
+          "rating_count": {
+            "type": "integer",
+            "title": "Rating Count",
+            "description": "How many sidequestd reviews the average is taken over",
+            "default": 0
+          },
+          "igdb_rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Igdb Rating",
+            "description": "IGDB's blended critic-and-user score, 0-100. Deliberately not converted to the 1-10 scale: it is a different measurement by a different population, and clients render it as one. Null when IGDB has no score for the game, or when the weekly catalog sync has not reached this row yet."
+          },
+          "igdb_rating_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Igdb Rating Count",
+            "description": "How many IGDB ratings their score is over. Null, rather than 0, because 'nobody rated it upstream' and 'we have not asked yet' are different."
           },
           "release_year": {
             "anyOf": [

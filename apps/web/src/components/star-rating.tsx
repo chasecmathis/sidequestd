@@ -47,6 +47,17 @@ function Star({ fill, size }: { fill: number; size: number }) {
   );
 }
 
+/**
+ * One solid star, for a line too small to carry the whole row.
+ *
+ * Exists so the card's score strip can mark a rating without reaching for "★" —
+ * see the note above about what that character does on the wrong platform. It is
+ * the same path at full fill, so there is still one amber star in the app.
+ */
+export function StarGlyph({ size = 11 }: { size?: number }) {
+  return <Star fill={1} size={size} />;
+}
+
 /** Read-only display. The numeric value is the accessible name. */
 export function StarRating({ rating, size = 18 }: { rating: number; size?: number }) {
   return (

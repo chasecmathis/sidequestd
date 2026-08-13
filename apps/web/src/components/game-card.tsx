@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * The result card from SPEC §6.6: cover art, title, release year, platforms.
+ * The result card from SPEC §6.6: cover art, title, release year, how it was
+ * rated, platforms.
  *
  * `action` is a slot below the card for a control that belongs to the game but
  * is not "open the game" — the add-to-list picker on Search (SPEC §6.9). It is a
@@ -18,10 +19,15 @@ import Link from "next/link";
 import { ImageOff } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { releaseYearLabel } from "@/lib/catalog";
+import { StarGlyph } from "@/components/star-rating";
+import { formatGameRating, formatIgdbRating, releaseYearLabel } from "@/lib/catalog";
+import { cn } from "@/lib/cn";
 import type { GameSummary } from "@sidequestd/api-types";
 
 export function GameCard({ game, action }: { game: GameSummary; action?: ReactNode }) {
+  const ours = formatGameRating(game.rating_average);
+  const igdb = formatIgdbRating(game.igdb_rating);
+
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-lg border border-line bg-surface transition-colors duration-200 focus-within:border-line-strong hover:border-line-strong">
       <Link href={`/games/${game.id}`} className="group flex flex-1 flex-col">
@@ -45,7 +51,33 @@ export function GameCard({ game, action }: { game: GameSummary; action?: ReactNo
         <div className="flex flex-1 flex-col gap-1.5 p-3">
           <h3 className="type-display text-base leading-tight text-fg">{game.title}</h3>
           <p className="type-eyebrow text-fg-faint">{releaseYearLabel(game.release_year)}</p>
-          <p className="mt-auto truncate pt-1 text-xs text-fg-faint">
+
+          {/* Quiet on purpose: a grid of these is a shelf of boxes, and two
+              scores set any louder would turn it into a leaderboard. Either half
+              can be missing — most of the catalog has no IGDB score until the
+              sync reaches it — so the separator and the line itself both come
+              and go, and `mt-auto` lands on whichever row ends up last. */}
+          {ours || igdb ? (
+            <p className="mt-auto flex items-center gap-1.5 pt-1 text-xs tabular-nums text-fg-dim">
+              {ours ? (
+                <span className="inline-flex items-center gap-1">
+                  <StarGlyph size={11} />
+                  <span>{ours}</span>
+                  <span className="sr-only">out of 5 on sidequestd</span>
+                </span>
+              ) : null}
+              {ours && igdb ? <span aria-hidden>·</span> : null}
+              {igdb ? (
+                <span className="inline-flex items-center gap-1">
+                  <span className="type-eyebrow text-fg-faint">IGDB</span>
+                  <span>{igdb}</span>
+                  <span className="sr-only">out of 100 on IGDB</span>
+                </span>
+              ) : null}
+            </p>
+          ) : null}
+
+          <p className={cn("truncate pt-1 text-xs text-fg-faint", !ours && !igdb && "mt-auto")}>
             {game.platforms.map((platform) => platform.name).join(" · ") || "Platform unknown"}
           </p>
         </div>

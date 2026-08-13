@@ -53,6 +53,7 @@ function review(overrides: Partial<ReviewSummary> = {}): ReviewSummary {
       cover_url: null,
       release_date: "2014-10-07",
       release_year: 2014,
+      rating_count: 0,
       platforms: [],
     },
     rating: 9,

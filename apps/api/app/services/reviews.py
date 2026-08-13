@@ -228,6 +228,60 @@ async def _owned(db: AsyncSession, review_id: uuid.UUID, user: User) -> Review:
 # --- Writing (SPEC §6.3) ----------------------------------------------------
 
 
+async def refresh_game_rating(db: AsyncSession, game_id: uuid.UUID) -> None:
+    """Rewrite `games.rating_average` / `rating_count` from `reviews`.
+
+    Called inside the transaction of every review write, so a member who rates a
+    game and goes back to it sees the average move. That immediacy is the whole
+    reason this is denormalised onto `games` rather than materialised on a
+    schedule the way `trending_scores` is.
+
+    Recomputed, never incremented. An increment that misses one path is wrong
+    forever; a recompute that misses one is wrong until the next review of that
+    game and then heals itself.
+
+    The row is locked *before* the aggregate is issued, and as a separate
+    statement, which is not ceremony. Under READ COMMITTED an
+    `UPDATE … SET x = (SELECT …)` that blocks on a concurrent writer re-runs its
+    subquery against the *original* snapshot: it sees what the other transaction
+    did to the row it locked, but not what it did to any other row — and the
+    reviews being counted are exactly "any other row". Two people rating the same
+    game in the same instant would leave a count permanently one short. Taking
+    the lock first means the second writer's aggregate runs in a fresh snapshot
+    and counts the review the first one just committed. Nothing here can
+    deadlock: a review write touches one game, so no transaction ever holds two
+    of these locks.
+
+    `synchronize_session="fetch"` is load-bearing too. The session is built with
+    `expire_on_commit=False`, so a `Game` already in the identity map — the one
+    `create_review` loaded to check the game exists, which is then embedded in
+    the 201 response — would otherwise keep and serialise its pre-review figures.
+
+    Note for whoever adds account deletion: `reviews.user_id` is ON DELETE
+    CASCADE, so removing a user silently drops their reviews out from under these
+    counters. That path has to call this for every game it touched.
+    """
+    await db.execute(sa.select(Game.id).where(Game.id == game_id).with_for_update())
+    await db.execute(
+        sa.update(Game)
+        .where(Game.id == game_id)
+        .values(
+            rating_average=(
+                sa.select(sa.func.avg(Review.rating))
+                .where(Review.game_id == game_id)
+                .scalar_subquery()
+            ),
+            rating_count=(
+                sa.select(sa.func.count())
+                .select_from(Review)
+                .where(Review.game_id == game_id)
+                .scalar_subquery()
+            ),
+        )
+        .execution_options(synchronize_session="fetch")
+    )
+
+
 async def create_review(db: AsyncSession, user: User, data: ReviewCreate) -> ReviewWithStats:
     """Start a review of a game already in the catalog."""
     if await db.get(Game, data.game_id) is None:
@@ -270,6 +324,8 @@ async def create_review(db: AsyncSession, user: User, data: ReviewCreate) -> Rev
             review_id=review.id,
         )
 
+    await refresh_game_rating(db, data.game_id)
+
     await db.commit()
 
     return ReviewWithStats(review=await _load(db, review.id), stats=NO_INTERACTIONS)
@@ -288,8 +344,18 @@ async def update_review(
     """
     review = await _owned(db, review_id, user)
 
-    for field, value in data.model_dump(exclude_unset=True).items():
+    changed = data.model_dump(exclude_unset=True)
+    for field, value in changed.items():
         setattr(review, field, value)
+
+    # Only when the score itself moved. A PATCH of the text alone should not take
+    # a row lock on a game whose average it cannot possibly have changed — and
+    # the flush is required rather than incidental, because the session is built
+    # with `autoflush=False` and the aggregate reads the table, not the session.
+    if "rating" in changed:
+        await db.flush()
+        await refresh_game_rating(db, review.game_id)
+
     await db.commit()
 
     return (await with_stats(db, [await _load(db, review.id)], user.id))[0]
@@ -305,8 +371,14 @@ async def delete_review(db: AsyncSession, user: User, review_id: uuid.UUID) -> N
     """
     review = await _owned(db, review_id, user)
     urls = [url for item in review.media for url in (item.url, item.thumbnail_url)]
+    # Read before the delete: the instance is expunged by the flush below.
+    game_id = review.game_id
 
     await db.delete(review)
+    await db.flush()
+    # The last review of a game leaves avg() returning NULL over an empty set,
+    # which lands as the unrated state without needing a case for it.
+    await refresh_game_rating(db, game_id)
     await db.commit()
 
     for url in urls:

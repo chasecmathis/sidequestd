@@ -1659,6 +1659,27 @@ export interface components {
             release_date: string | null;
             /** Platforms */
             platforms: components["schemas"]["PlatformRef"][];
+            /**
+             * Rating Average
+             * @description Mean sidequestd rating, on the stored 1-10 scale. Null until somebody rates it — the mean of nothing is not zero.
+             */
+            rating_average?: number | null;
+            /**
+             * Rating Count
+             * @description How many sidequestd reviews the average is taken over
+             * @default 0
+             */
+            rating_count: number;
+            /**
+             * Igdb Rating
+             * @description IGDB's blended critic-and-user score, 0-100. Deliberately not converted to the 1-10 scale: it is a different measurement by a different population, and clients render it as one. Null when IGDB has no score for the game, or when the weekly catalog sync has not reached this row yet.
+             */
+            igdb_rating?: number | null;
+            /**
+             * Igdb Rating Count
+             * @description How many IGDB ratings their score is over. Null, rather than 0, because 'nobody rated it upstream' and 'we have not asked yet' are different.
+             */
+            igdb_rating_count?: number | null;
             /** Summary */
             summary: string | null;
             /** Genres */
@@ -1708,6 +1729,27 @@ export interface components {
             release_date: string | null;
             /** Platforms */
             platforms: components["schemas"]["PlatformRef"][];
+            /**
+             * Rating Average
+             * @description Mean sidequestd rating, on the stored 1-10 scale. Null until somebody rates it — the mean of nothing is not zero.
+             */
+            rating_average?: number | null;
+            /**
+             * Rating Count
+             * @description How many sidequestd reviews the average is taken over
+             * @default 0
+             */
+            rating_count: number;
+            /**
+             * Igdb Rating
+             * @description IGDB's blended critic-and-user score, 0-100. Deliberately not converted to the 1-10 scale: it is a different measurement by a different population, and clients render it as one. Null when IGDB has no score for the game, or when the weekly catalog sync has not reached this row yet.
+             */
+            igdb_rating?: number | null;
+            /**
+             * Igdb Rating Count
+             * @description How many IGDB ratings their score is over. Null, rather than 0, because 'nobody rated it upstream' and 'we have not asked yet' are different.
+             */
+            igdb_rating_count?: number | null;
             /**
              * Release Year
              * @description Precomputed so every client renders the same year for a given date.

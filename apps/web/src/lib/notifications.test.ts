@@ -28,6 +28,7 @@ function game(title = "Hades"): GameSummary {
     cover_url: null,
     release_date: "2020-09-17",
     release_year: 2020,
+    rating_count: 0,
     platforms: [],
   };
 }

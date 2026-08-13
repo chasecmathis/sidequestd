@@ -47,6 +47,7 @@ from app.models.user import User
 from app.services import media as media_service
 from app.services import notifications, storage
 from app.services.games_import import SEED_SOURCE, load_seed_records, upsert_games
+from app.services.reviews import refresh_game_rating
 
 TEST_PASSWORD = "correct-horse-battery-staple"
 
@@ -343,12 +344,18 @@ def make_review(db: AsyncSession, catalog: list[Game]) -> Callable[..., Awaitabl
     Written straight to the database rather than posted: the interaction tests
     need something to like and comment on, and going through `POST /reviews`
     would make every one of them depend on the review endpoints working too.
+
+    It does still refresh the game's rating counters, because bypassing the
+    service must not mean bypassing the invariant — a fixture-built review that
+    left `games.rating_average` disagreeing with `reviews` would surface as a
+    failure in some unrelated test that merely happened to read a game.
     """
 
     async def _make(author: User, *, game: Game | None = None, rating: int = 8) -> Review:
         review = Review(user_id=author.id, game_id=(game or catalog[0]).id, rating=rating)
         db.add(review)
         await db.flush()
+        await refresh_game_rating(db, review.game_id)
         return review
 
     return _make

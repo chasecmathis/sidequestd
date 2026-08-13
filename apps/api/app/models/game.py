@@ -52,6 +52,27 @@ class Game(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     cover_url: Mapped[str | None] = mapped_column(sa.Text)
     release_date: Mapped[date | None] = mapped_column(sa.Date)
 
+    # Upstream's own score, mirrored on the scale IGDB publishes it on — 0-100,
+    # deliberately not folded into our 1-10. They are two different measurements
+    # taken by two different populations, and a game detail page shows them as
+    # two, so converting one into the other here would only invent a precision
+    # neither has. Null until the weekly sync has walked this row, which is a
+    # different fact from "nobody has rated it upstream" — hence the nullable
+    # count beside it.
+    igdb_rating: Mapped[float | None] = mapped_column(sa.Float)
+    igdb_rating_count: Mapped[int | None] = mapped_column(sa.Integer)
+
+    # Ours, denormalised off `reviews`. Rewritten inside the same transaction as
+    # every review write by `app.services.reviews.refresh_game_rating`, so
+    # somebody who rates a game and comes back to it sees the number move — which
+    # is what rules out the `trending_scores` treatment below.
+    #
+    # NULL rather than 0.0 while nobody has rated it, matching the profile
+    # average in `app.services.users.get_stats`: the mean of nothing is not zero,
+    # and calling it zero would draw every unreviewed game as one star.
+    rating_average: Mapped[float | None] = mapped_column(sa.Float)
+    rating_count: Mapped[int] = mapped_column(sa.Integer, default=0, server_default=sa.text("0"))
+
     genres: Mapped[list[Genre]] = relationship(secondary=game_genres)
     platforms: Mapped[list[Platform]] = relationship(secondary=game_platforms)
 
@@ -65,6 +86,14 @@ class Game(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             postgresql_using="gin",
             postgresql_ops={"title": "gin_trgm_ops"},
         ),
+        # The one thing standing between a future change of upstream field — to
+        # `rating`, or to a source that publishes out of 10 — and a 0-100 meter
+        # quietly rendering nonsense.
+        sa.CheckConstraint(
+            "igdb_rating IS NULL OR (igdb_rating >= 0 AND igdb_rating <= 100)",
+            name="igdb_rating_in_range",
+        ),
+        sa.CheckConstraint("rating_count >= 0", name="rating_count_non_negative"),
     )
 
 

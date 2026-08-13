@@ -1,5 +1,5 @@
 {
-  "$comment": "Offline catalog fixture so the games slice runs with no IGDB account (SPEC §2). This is development data, not a mirror of IGDB: `external_id` records the IGDB game id where it is known, so a later live sync updates the row in place rather than duplicating it, but the ids and metadata here are best-effort and `--igdb` is the authoritative source. Cover URLs point at IGDB's public CDN and were checked to show the right game; entries whose cover could not be verified carry null, which the clients render as a 'no cover art' card.",
+  "$comment": "Offline catalog fixture so the games slice runs with no IGDB account (SPEC §2). This is development data, not a mirror of IGDB: `external_id` records the IGDB game id where it is known, so a later live sync updates the row in place rather than duplicating it, but the ids and metadata here are best-effort and `--igdb` is the authoritative source. Cover URLs point at IGDB's public CDN and were checked to show the right game; entries whose cover could not be verified carry null, which the clients render as a 'no cover art' card. `total_rating` / `total_rating_count` are IGDB's blended score and how many ratings it is over; they are approximations here, and a few entries carry none at all so the 'no upstream score' state is reachable offline.",
   "source": "seed",
   "games": [
     {
@@ -18,7 +18,9 @@
         "Xbox One",
         "Nintendo Switch",
         "PlayStation 5"
-      ]
+      ],
+      "total_rating": 93.2,
+      "total_rating_count": 3421
     },
     {
       "external_id": "1905",
@@ -35,7 +37,9 @@
         "PlayStation 5",
         "Xbox Series X|S",
         "Nintendo Switch"
-      ]
+      ],
+      "total_rating": 71.4,
+      "total_rating_count": 812
     },
     {
       "external_id": "119171",
@@ -53,7 +57,9 @@
         "PlayStation 5",
         "Xbox One",
         "Xbox Series X|S"
-      ]
+      ],
+      "total_rating": 95.1,
+      "total_rating_count": 2874
     },
     {
       "external_id": "7346",
@@ -69,7 +75,9 @@
       "platforms": [
         "Nintendo Switch",
         "Wii U"
-      ]
+      ],
+      "total_rating": 94.6,
+      "total_rating_count": 2210
     },
     {
       "external_id": "113112",
@@ -87,7 +95,9 @@
         "Nintendo Switch",
         "PlayStation 5",
         "Xbox Series X|S"
-      ]
+      ],
+      "total_rating": 89.8,
+      "total_rating_count": 1176
     },
     {
       "external_id": "1877",
@@ -104,7 +114,9 @@
         "PC (Microsoft Windows)",
         "PlayStation 5",
         "Xbox Series X|S"
-      ]
+      ],
+      "total_rating": 78.3,
+      "total_rating_count": 1943
     },
     {
       "external_id": "1020",
@@ -122,7 +134,9 @@
         "PlayStation 4",
         "PlayStation 5",
         "Xbox Series X|S"
-      ]
+      ],
+      "total_rating": 92.7,
+      "total_rating_count": 2688
     },
     {
       "external_id": "1074",
@@ -136,7 +150,9 @@
       ],
       "platforms": [
         "Nintendo Switch"
-      ]
+      ],
+      "total_rating": 91.5,
+      "total_rating_count": 1204
     },
     {
       "external_id": "26192",
@@ -153,7 +169,9 @@
         "Nintendo Switch",
         "PlayStation 4",
         "Xbox One"
-      ]
+      ],
+      "total_rating": 88.9,
+      "total_rating_count": 967
     },
     {
       "external_id": "17000",
@@ -171,7 +189,9 @@
         "Nintendo Switch",
         "PlayStation 4",
         "Xbox One"
-      ]
+      ],
+      "total_rating": 89.4,
+      "total_rating_count": 1531
     },
     {
       "external_id": "1170",
@@ -189,7 +209,9 @@
         "Nintendo Switch",
         "PlayStation 4",
         "Xbox One"
-      ]
+      ],
+      "total_rating": 90.6,
+      "total_rating_count": 1348
     },
     {
       "external_id": "11156",
@@ -221,7 +243,9 @@
         "PC (Microsoft Windows)",
         "PlayStation 5",
         "Xbox Series X|S"
-      ]
+      ],
+      "total_rating": 94.3,
+      "total_rating_count": 1622
     },
     {
       "external_id": "25076",
@@ -237,7 +261,9 @@
         "PC (Microsoft Windows)",
         "PlayStation 4",
         "Xbox One"
-      ]
+      ],
+      "total_rating": 93.8,
+      "total_rating_count": 2455
     },
     {
       "external_id": "19560",
@@ -252,7 +278,9 @@
       "platforms": [
         "PlayStation 4",
         "PC (Microsoft Windows)"
-      ]
+      ],
+      "total_rating": 92.1,
+      "total_rating_count": 1789
     },
     {
       "external_id": "115276",
@@ -267,7 +295,9 @@
       "platforms": [
         "PlayStation 5",
         "PC (Microsoft Windows)"
-      ]
+      ],
+      "total_rating": 84.7,
+      "total_rating_count": 623
     },
     {
       "external_id": "9927",
@@ -285,7 +315,9 @@
         "PlayStation 5",
         "Nintendo Switch",
         "Xbox Series X|S"
-      ]
+      ],
+      "total_rating": 91.2,
+      "total_rating_count": 884
     },
     {
       "external_id": "134595",
@@ -319,7 +351,9 @@
         "PC (Microsoft Windows)",
         "Nintendo Switch",
         "PlayStation 5"
-      ]
+      ],
+      "total_rating": 76.5,
+      "total_rating_count": 741
     },
     {
       "external_id": "2963",
@@ -337,7 +371,9 @@
         "Nintendo Switch",
         "PlayStation 4",
         "Xbox One"
-      ]
+      ],
+      "total_rating": 87.3,
+      "total_rating_count": 2093
     },
     {
       "external_id": "1085",
@@ -354,7 +390,9 @@
         "PC (Microsoft Windows)",
         "PlayStation 3",
         "Xbox 360"
-      ]
+      ],
+      "total_rating": 93.6,
+      "total_rating_count": 1877
     },
     {
       "external_id": "1029",
@@ -370,7 +408,9 @@
         "PC (Microsoft Windows)",
         "PlayStation 3",
         "Xbox 360"
-      ]
+      ],
+      "total_rating": 89.1,
+      "total_rating_count": 1425
     },
     {
       "external_id": "96437",
@@ -384,7 +424,9 @@
       ],
       "platforms": [
         "Nintendo Switch"
-      ]
+      ],
+      "total_rating": 83.9,
+      "total_rating_count": 1058
     },
     {
       "external_id": "125174",

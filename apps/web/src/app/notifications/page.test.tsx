@@ -61,6 +61,7 @@ function game(title = "Hades"): GameSummary {
     release_date: "2020-09-17",
     release_year: 2020,
     platforms: [],
+    rating_count: 0,
   };
 }
 

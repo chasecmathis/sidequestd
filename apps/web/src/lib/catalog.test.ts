@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   browseQuery,
+  formatGameRating,
+  formatIgdbRating,
+  igdbMeterFill,
   orderFacetOptions,
+  ratingCountLabel,
   releaseYearLabel,
   searchQuery,
   toggleFacet,
@@ -135,5 +139,62 @@ describe("releaseYearLabel", () => {
   it("says TBA rather than rendering null", () => {
     expect(releaseYearLabel(null)).toBe("TBA");
     expect(releaseYearLabel(undefined)).toBe("TBA");
+  });
+});
+
+describe("formatGameRating", () => {
+  it("shows the stored 1-10 average on the 5-star scale a reader sees", () => {
+    expect(formatGameRating(10)).toBe("5.0");
+    expect(formatGameRating(7)).toBe("3.5");
+  });
+
+  it("keeps the fraction an average actually has", () => {
+    expect(formatGameRating(7.4)).toBe("3.7");
+  });
+
+  it("says nothing rather than zero when nobody has rated it", () => {
+    expect(formatGameRating(null)).toBeNull();
+    expect(formatGameRating(undefined)).toBeNull();
+  });
+});
+
+describe("formatIgdbRating", () => {
+  it("rounds to the whole number IGDB is read as", () => {
+    expect(formatIgdbRating(87.4321)).toBe("87");
+    expect(formatIgdbRating(87.6)).toBe("88");
+  });
+
+  it("shows a zero score rather than hiding it", () => {
+    // The falsy-check trap: 0 is a score IGDB can publish, and it is not "unrated".
+    expect(formatIgdbRating(0)).toBe("0");
+  });
+
+  it("says nothing when IGDB has no score", () => {
+    expect(formatIgdbRating(null)).toBeNull();
+    expect(formatIgdbRating(undefined)).toBeNull();
+  });
+});
+
+describe("igdbMeterFill", () => {
+  it("reads the score as a fraction of 100", () => {
+    expect(igdbMeterFill(87)).toBeCloseTo(0.87);
+  });
+
+  it("clamps, so a bad upstream value cannot overrun the track", () => {
+    expect(igdbMeterFill(150)).toBe(1);
+    expect(igdbMeterFill(-5)).toBe(0);
+  });
+});
+
+describe("ratingCountLabel", () => {
+  it("names how many ratings the average is over", () => {
+    expect(ratingCountLabel(1)).toBe("1 rating");
+    expect(ratingCountLabel(1204)).toBe("1,204 ratings");
+  });
+
+  it("says nothing at zero, so the caller can say 'Not yet rated' instead", () => {
+    expect(ratingCountLabel(0)).toBeNull();
+    expect(ratingCountLabel(null)).toBeNull();
+    expect(ratingCountLabel(undefined)).toBeNull();
   });
 });

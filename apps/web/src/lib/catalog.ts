@@ -4,7 +4,17 @@
  * Kept out of the components so the URL shape — which is the actual contract
  * with the API — is testable without rendering anything.
  */
+import { formatStars } from "./reviews";
 import type { GameSort } from "@sidequestd/api-types";
+
+/**
+ * IGDB publishes out of 100; we store out of 10 and show out of 5.
+ *
+ * The two are never converted into each other. They are different measurements
+ * by different populations, and the game detail block shows them as two — see
+ * `GameScores`.
+ */
+export const IGDB_MAX_RATING = 100;
 
 export interface BrowseFilters {
   genres?: string[];
@@ -77,4 +87,42 @@ export function visibleFacetOptions<T extends { slug: string }>(
 
 export function releaseYearLabel(releaseYear: number | null | undefined): string {
   return releaseYear ? String(releaseYear) : "TBA";
+}
+
+/**
+ * Our average as a reader sees it — "3.7" — or null when nobody has rated it.
+ *
+ * Just the numeral: the detail block sets the "/ 5" a size down and a shade
+ * quieter, which gluing them into one string would make impossible. Built on
+ * `formatStars` so a game's average and a single review's score can never
+ * disagree about what an 8 looks like.
+ */
+export function formatGameRating(average: number | null | undefined): string | null {
+  return average === null || average === undefined ? null : formatStars(average);
+}
+
+/**
+ * IGDB's score, rounded — "87" — or null when they have none.
+ *
+ * The null check is explicit rather than falsy on purpose: 0 is a score IGDB can
+ * publish, and `!rating` would hide it as though the game were unrated.
+ */
+export function formatIgdbRating(rating: number | null | undefined): string | null {
+  return rating === null || rating === undefined ? null : String(Math.round(rating));
+}
+
+/** How full the IGDB meter runs, 0-1. Clamped, so a bad value cannot overrun the track. */
+export function igdbMeterFill(rating: number): number {
+  return Math.min(Math.max(rating / IGDB_MAX_RATING, 0), 1);
+}
+
+/**
+ * "1 rating" / "1,204 ratings", or null when there are none to name.
+ *
+ * Null rather than "0 ratings": the caller says "Not yet rated" in that case,
+ * which is the same fact without making the reader do the inference.
+ */
+export function ratingCountLabel(count: number | null | undefined): string | null {
+  if (!count) return null;
+  return `${count.toLocaleString("en-US")} ${count === 1 ? "rating" : "ratings"}`;
 }

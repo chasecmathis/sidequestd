@@ -48,6 +48,7 @@ function game(title: string): GameSummary {
     cover_url: null,
     release_date: "2022-02-25",
     release_year: 2022,
+    rating_count: 0,
     platforms: [{ id: "p1", name: "PlayStation 5", slug: "playstation-5" }],
   };
 }
@@ -90,6 +91,7 @@ describe("SearchPage", () => {
           cover_url: null,
           release_date: "2022-02-25",
           release_year: 2022,
+          rating_count: 0,
           platforms: [{ id: "p1", name: "PlayStation 5", slug: "playstation-5" }],
         },
       ],

@@ -22,12 +22,56 @@ async def test_browse_returns_a_page_of_cards(client: AsyncClient, catalog: list
     assert body["next_cursor"]
 
     card = body["items"][0]
-    # SPEC §6.6: cover art, release year and platform are what a card renders.
-    assert {"id", "slug", "title", "cover_url", "release_date", "release_year", "platforms"} <= set(
-        card
-    )
+    # SPEC §6.6: cover art, release year and platform are what a card renders —
+    # plus the two scores, which the card's meta line needs and which cost four
+    # numbers rather than the paragraph below.
+    assert {
+        "id",
+        "slug",
+        "title",
+        "cover_url",
+        "release_date",
+        "release_year",
+        "platforms",
+        "rating_average",
+        "rating_count",
+        "igdb_rating",
+        "igdb_rating_count",
+    } <= set(card)
     # The long summary belongs to the detail view, not to a 20-item page.
     assert "summary" not in card
+
+
+async def test_an_unrated_game_reports_no_average_rather_than_zero(
+    client: AsyncClient, catalog: list[Game]
+) -> None:
+    """Nobody has reviewed the seed catalog, and a mean of nothing is not zero.
+
+    `is None` rather than `== 0` on purpose: a well-meaning coalesce would pass
+    the second and draw every unreviewed game in the catalog as one star.
+    """
+    card = (await client.get(BROWSE, params={"limit": 1})).json()["items"][0]
+
+    assert card["rating_average"] is None
+    assert card["rating_count"] == 0
+
+
+async def test_the_upstream_score_reaches_the_client(
+    client: AsyncClient, catalog: list[Game]
+) -> None:
+    """The fixture carries scores for most entries and none for a few."""
+    cards = (await client.get(BROWSE, params={"limit": 50})).json()["items"]
+
+    scored = [card for card in cards if card["igdb_rating"] is not None]
+    assert scored, "the seed fixture should leave some games scored"
+    assert [card for card in cards if card["igdb_rating"] is None]
+    assert all(0 <= card["igdb_rating"] <= 100 for card in scored)
+
+
+async def test_detail_carries_the_same_two_scores(client: AsyncClient, catalog: list[Game]) -> None:
+    body = (await client.get(f"{BROWSE}/{catalog[0].id}")).json()
+
+    assert {"rating_average", "rating_count", "igdb_rating", "igdb_rating_count"} <= set(body)
 
 
 async def test_browse_is_open_to_signed_out_callers(

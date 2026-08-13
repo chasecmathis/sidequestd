@@ -62,6 +62,27 @@ class GameSummary(BaseModel):
     release_date: date | None
     platforms: list[PlatformRef]
 
+    rating_average: float | None = Field(
+        default=None,
+        description="Mean sidequestd rating, on the stored 1-10 scale. Null until "
+        "somebody rates it — the mean of nothing is not zero.",
+    )
+    rating_count: int = Field(
+        default=0, description="How many sidequestd reviews the average is taken over"
+    )
+    igdb_rating: float | None = Field(
+        default=None,
+        description="IGDB's blended critic-and-user score, 0-100. Deliberately not "
+        "converted to the 1-10 scale: it is a different measurement by a different "
+        "population, and clients render it as one. Null when IGDB has no score for "
+        "the game, or when the weekly catalog sync has not reached this row yet.",
+    )
+    igdb_rating_count: int | None = Field(
+        default=None,
+        description="How many IGDB ratings their score is over. Null, rather than 0, "
+        "because 'nobody rated it upstream' and 'we have not asked yet' are different.",
+    )
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def release_year(self) -> int | None:

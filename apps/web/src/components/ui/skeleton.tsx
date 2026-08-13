@@ -77,6 +77,10 @@ export function GameGridSkeleton({
             <div className="space-y-2 p-3">
               <Skeleton className="h-3.5 w-4/5" />
               <Skeleton className="h-3 w-1/2" />
+              {/* Title, year, then the score strip — the third line a real card
+                  gained, so the placeholder is still the same height as what
+                  replaces it. */}
+              <Skeleton className="h-3 w-1/3" />
             </div>
           </div>
         ))}

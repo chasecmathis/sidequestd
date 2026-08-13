@@ -63,6 +63,19 @@ IGDB_MIN_REQUEST_INTERVAL = 0.25
 # expansions, bundles, ports and mods, which outnumber the games themselves.
 IGDB_MAIN_GAMES_FILTER = "game_type = 0"
 
+# What one game is worth asking for. A constant rather than a literal inside the
+# query builder so the tests can assert on the fields we need without pinning the
+# order they happen to be written in.
+#
+# `total_rating` is IGDB's blended critic-and-user score, which is the one they
+# present as *the* rating — `rating` alone is their members, `aggregated_rating`
+# alone is the press, and both are far sparser. It is omitted from the payload
+# entirely for a game nobody has scored, rather than sent as null.
+IGDB_FIELDS = (
+    "name, summary, first_release_date, cover.image_id, genres.name, platforms.name, "
+    "total_rating, total_rating_count"
+)
+
 _SLUG_STRIP = re.compile(r"[^a-z0-9]+")
 
 
@@ -77,6 +90,8 @@ class GameRecord:
     release_date: date | None = None
     genres: tuple[str, ...] = ()
     platforms: tuple[str, ...] = ()
+    igdb_rating: float | None = None
+    igdb_rating_count: int | None = None
 
 
 @dataclass(slots=True)
@@ -129,6 +144,8 @@ def _record_from_seed(entry: dict[str, Any]) -> GameRecord:
         release_date=date.fromisoformat(released) if released else None,
         genres=tuple(entry.get("genres", ())),
         platforms=tuple(entry.get("platforms", ())),
+        igdb_rating=entry.get("total_rating"),
+        igdb_rating_count=entry.get("total_rating_count"),
     )
 
 
@@ -174,7 +191,7 @@ def _build_query(*, limit: int, offset: int | None = None, after_id: int | None 
         conditions.append(f"id > {after_id}")
 
     clauses = [
-        "fields name, summary, first_release_date, cover.image_id, genres.name, platforms.name",
+        f"fields {IGDB_FIELDS}",
         f"where {' & '.join(conditions)}",
         "sort id asc" if after_id is not None else "sort rating_count desc",
         f"limit {limit}",
@@ -253,6 +270,9 @@ async def iter_igdb_records(
 def _record_from_igdb(entry: dict[str, Any]) -> GameRecord:
     released = entry.get("first_release_date")
     cover = entry.get("cover") or {}
+    # Absent for anything IGDB has not scored — the key is missing rather than
+    # null, so `.get` is doing real work here and not just being defensive.
+    rating = entry.get("total_rating")
     return GameRecord(
         external_id=str(entry["id"]),
         title=entry["name"],
@@ -267,6 +287,10 @@ def _record_from_igdb(entry: dict[str, Any]) -> GameRecord:
         ),
         genres=tuple(item["name"] for item in entry.get("genres", []) if item.get("name")),
         platforms=tuple(item["name"] for item in entry.get("platforms", []) if item.get("name")),
+        # Coerced because IGDB sends a bare int for a whole score and the column
+        # is double precision.
+        igdb_rating=float(rating) if rating is not None else None,
+        igdb_rating_count=entry.get("total_rating_count"),
     )
 
 
@@ -475,6 +499,16 @@ async def upsert_games(
         game.summary = record.summary
         game.cover_url = record.cover_url
         game.release_date = record.release_date
+        # Unconditional, like every other field here, and for the same reason the
+        # genre assignment below spells out: IGDB drops `total_rating` from the
+        # payload when a game falls back under its threshold, and a score that no
+        # longer exists upstream has to be able to stop existing here. Guarding
+        # this with `is not None` would make a withdrawn score permanent.
+        #
+        # `rating_average` and `rating_count` are ours and are deliberately not
+        # touched — the import has no opinion about what our members think.
+        game.igdb_rating = record.igdb_rating
+        game.igdb_rating_count = record.igdb_rating_count
         # Assigning the full list lets SQLAlchemy diff the association rows, so a
         # game that lost a platform upstream loses it here too.
         game.genres = [genres[slug] for slug in map(slugify, record.genres) if slug in genres]

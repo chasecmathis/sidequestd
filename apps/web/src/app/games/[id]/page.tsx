@@ -20,6 +20,7 @@ import { useEffect, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
 import { BacklogControl } from "@/components/backlog-control";
+import { GameScores } from "@/components/game-scores";
 import { Alert } from "@/components/ui/alert";
 import { buttonStyles } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
@@ -97,6 +98,21 @@ export default function GameDetailPage() {
             <div className="flex-1 space-y-4">
               <Skeleton className="h-12 w-3/4" />
               <Skeleton className="h-4 w-40" />
+              {/* The score band, held open so the summary below it does not jump
+                  ~90px when the game arrives. Two columns because both are
+                  usually present, and the IGDB one collapsing shifts nothing
+                  horizontally — the grid columns are fixed. */}
+              <div className="flex gap-10 pt-3">
+                <div className="space-y-2">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-8 w-28" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-8 w-28" />
+                </div>
+              </div>
               <Skeleton className="h-24 w-full" />
             </div>
           </div>
@@ -135,6 +151,10 @@ export default function GameDetailPage() {
             Released {releaseYearLabel(game.release_year)}
             {game.external_source ? ` · via ${game.external_source}` : ""}
           </p>
+
+          {/* Above the summary: the summary is prose the eye skips, and how the
+              game was received is the second thing a reader wants after its name. */}
+          <GameScores game={game} />
 
           {game.summary ? <p className="prose-review mt-7 text-fg-dim">{game.summary}</p> : null}
 

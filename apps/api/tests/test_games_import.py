@@ -399,6 +399,102 @@ def test_the_single_page_path_still_leads_with_the_best_known_games() -> None:
     assert "offset 400" in query
 
 
+def test_the_query_asks_for_the_upstream_score() -> None:
+    """Without these two fields the IGDB half of a game's scores is dark forever.
+
+    Spelled out rather than checked through `IGDB_FIELDS` wholesale, because the
+    point is *which* score: `total_rating` is the blended one. Note that a bare
+    `"rating_count" in query` would pass on the popularity sort alone and prove
+    nothing.
+    """
+    query = _build_query(limit=10)
+
+    assert "total_rating" in query
+    assert "total_rating_count" in query
+
+
+# --- The upstream score -----------------------------------------------------
+
+
+def test_an_upstream_score_is_read_off_the_payload() -> None:
+    record = games_import._record_from_igdb(
+        {"id": 7, "name": "Scored", "total_rating": 87, "total_rating_count": 1204}
+    )
+
+    # Coerced to float: IGDB sends a bare int for a whole score.
+    assert record.igdb_rating == pytest.approx(87.0)
+    assert isinstance(record.igdb_rating, float)
+    assert record.igdb_rating_count == 1204
+
+
+def test_a_game_nobody_scored_carries_no_score() -> None:
+    """IGDB omits the keys rather than sending null, so `.get` is load-bearing."""
+    record = games_import._record_from_igdb({"id": 7, "name": "Unscored"})
+
+    assert record.igdb_rating is None
+    assert record.igdb_rating_count is None
+
+
+async def test_a_changed_score_is_refreshed_on_the_next_sync(db: AsyncSession) -> None:
+    """The failure this guards is invisible on create and only shows on re-import."""
+    await upsert_games(
+        db,
+        [GameRecord(external_id="77", title="Scored", igdb_rating=71.0, igdb_rating_count=300)],
+        source=IGDB_SOURCE,
+    )
+    await upsert_games(
+        db,
+        [GameRecord(external_id="77", title="Scored", igdb_rating=88.5, igdb_rating_count=1500)],
+        source=IGDB_SOURCE,
+    )
+
+    game = (await db.execute(sa.select(Game).where(Game.external_id == "77"))).scalar_one()
+    assert game.igdb_rating == pytest.approx(88.5)
+    assert game.igdb_rating_count == 1500
+
+
+async def test_a_withdrawn_score_is_cleared_rather_than_kept(db: AsyncSession) -> None:
+    """IGDB drops `total_rating` when a game falls back under its threshold.
+
+    Assigning unconditionally is what lets that reach us. A `is not None` guard
+    would make the first score a game ever had permanent.
+    """
+    await upsert_games(
+        db,
+        [GameRecord(external_id="78", title="Faded", igdb_rating=64.0, igdb_rating_count=12)],
+        source=IGDB_SOURCE,
+    )
+    await upsert_games(db, [GameRecord(external_id="78", title="Faded")], source=IGDB_SOURCE)
+
+    game = (await db.execute(sa.select(Game).where(Game.external_id == "78"))).scalar_one()
+    assert game.igdb_rating is None
+    assert game.igdb_rating_count is None
+
+
+def test_the_offline_fixture_carries_scores_and_gaps() -> None:
+    """Both render branches need to be reachable with no IGDB account."""
+    records = load_seed_records()
+
+    assert any(record.igdb_rating is not None for record in records)
+    assert any(record.igdb_rating is None for record in records)
+    assert all(
+        0 <= record.igdb_rating <= 100 for record in records if record.igdb_rating is not None
+    )
+
+
+async def test_our_own_average_is_not_the_import_s_business(db: AsyncSession) -> None:
+    """`rating_average` belongs to reviews; a catalog sync must not touch it."""
+    await upsert_games(
+        db,
+        [GameRecord(external_id="79", title="Ours", igdb_rating=90.0)],
+        source=IGDB_SOURCE,
+    )
+
+    game = (await db.execute(sa.select(Game).where(Game.external_id == "79"))).scalar_one()
+    assert game.rating_average is None
+    assert game.rating_count == 0
+
+
 # --- Walking the whole catalog ----------------------------------------------
 
 
