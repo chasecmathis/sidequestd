@@ -5,9 +5,11 @@ from __future__ import annotations
 import uuid
 
 import pytest
+import sqlalchemy as sa
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.game import Game
+from app.models.game import Game, Genre, game_genres
 from tests.conftest import SEED_GAME_COUNT
 
 BROWSE = "/api/v1/games"
@@ -286,4 +288,74 @@ async def test_genres_and_platforms_are_listed_for_the_browse_filters(
 
     assert {genre["slug"] for genre in genres} >= {"indie", "puzzle", "role-playing-rpg"}
     assert {platform["slug"] for platform in platforms} >= {"nintendo-switch", "playstation-5"}
-    assert [genre["name"] for genre in genres] == sorted(genre["name"] for genre in genres)
+
+
+async def test_facets_lead_with_the_ones_the_catalog_actually_uses(
+    client: AsyncClient, catalog: list[Game]
+) -> None:
+    """Alphabetical is the wrong order for a list the client collapses (SPEC §6.5).
+
+    It would open this fixture on Nintendo Switch and three PlayStations; on a
+    real IGDB import it opens on "1292 Advanced Programmable Video System" and
+    four AY-3-86xx chips, with PC three hundred rows below the fold.
+    """
+    platforms = (await client.get(f"{BROWSE}/platforms")).json()
+
+    assert [platform["name"] for platform in platforms] == [
+        "PC (Microsoft Windows)",  # on 20 of the fixture's 24 games
+        "Nintendo Switch",  # 13
+        "PlayStation 5",  # 12
+        "PlayStation 4",  # 9
+        "Xbox Series X|S",  # 8
+        "Xbox One",  # 7
+        # Two apiece, so the tie falls to the name — without that, rows sharing
+        # a count come back in whatever order the scan produced them, and a
+        # facet list that reshuffles between identical requests reads as a bug.
+        "PlayStation 3",
+        "Xbox 360",
+        "Wii U",  # 1
+    ]
+
+
+async def test_the_genre_order_is_the_one_the_catalog_supports(
+    client: AsyncClient, db: AsyncSession, catalog: list[Game]
+) -> None:
+    """Checked against the association table rather than the denormalised column,
+    so a recount that stopped running would fail this rather than agree with itself."""
+    counted = (
+        await db.execute(
+            sa.select(Genre.name, sa.func.count(game_genres.c.game_id))
+            .outerjoin(game_genres, game_genres.c.genre_id == Genre.id)
+            .group_by(Genre.id)
+        )
+    ).all()
+
+    genres = (await client.get(f"{BROWSE}/genres")).json()
+
+    expected = [name for name, _ in sorted(counted, key=lambda row: (-row[1], row[0]))]
+    assert [genre["name"] for genre in genres] == expected
+
+
+async def test_a_genre_nothing_is_filed_under_sorts_last(
+    client: AsyncClient, db: AsyncSession, catalog: list[Game]
+) -> None:
+    """A facet can outlive the games behind it — `delete_all_games` leaves the
+    lookup rows, and IGDB retires categories. It belongs under "Show all"."""
+    db.add(Genre(name="Aaardvark Sim", slug="aaardvark-sim"))
+    await db.commit()
+
+    genres = (await client.get(f"{BROWSE}/genres")).json()
+
+    assert genres[-1]["name"] == "Aaardvark Sim"
+
+
+async def test_discover_carries_the_facets_in_the_same_order(
+    client: AsyncClient, catalog: list[Game]
+) -> None:
+    """Discover is where the chips are actually drawn, and it reads its own copy."""
+    discover = (await client.get(f"{BROWSE}/discover")).json()
+    platforms = (await client.get(f"{BROWSE}/platforms")).json()
+
+    assert [platform["slug"] for platform in discover["platforms"]] == [
+        platform["slug"] for platform in platforms
+    ]

@@ -36,7 +36,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.models.backlog import BacklogItem
-from app.models.game import Game, Genre, Platform
+from app.models.game import Game, Genre, Platform, game_genres, game_platforms
 from app.models.review import Review
 from app.models.user import FavoriteGame
 from app.services.exceptions import IgdbNotConfiguredError
@@ -347,8 +347,67 @@ async def delete_all_games(db: AsyncSession) -> CatalogContents:
     contents = await count_catalog(db)
     await db.execute(sa.delete(Game))
     await db.commit()
+    # The lookup rows survive the wipe, so without this every facet would keep
+    # the count it had when it still had games behind it.
+    await refresh_facet_counts(db)
     logger.info("Emptied the games catalog: %s", contents.summary_line())
     return contents
+
+
+@dataclass(frozen=True, slots=True)
+class FacetCounts:
+    """How many genres and platforms came out of the recount with any games."""
+
+    genres: int
+    platforms: int
+
+    def summary_line(self) -> str:
+        return f"{self.genres} genre(s) and {self.platforms} platform(s) now have games behind them"
+
+
+async def refresh_facet_counts(db: AsyncSession) -> FacetCounts:
+    """Recompute `genres.game_count` and `platforms.game_count` from scratch.
+
+    Recomputed, not incremented, for the same reason `refresh_game_rating` is:
+    an import that reassigns a game's platforms deletes association rows as well
+    as adding them, and a counter maintained by deltas drifts the first time one
+    of those paths is missed.
+
+    Called once at the end of a catalog run rather than inside `upsert_games`.
+    A full IGDB walk is ~700 pages, and each of these costs a pass over the
+    association table — paying that per page would add minutes to the sync to
+    produce intermediate numbers nothing ever reads.
+    """
+    for model, facet_id in (
+        (Genre, game_genres.c.genre_id),
+        (Platform, game_platforms.c.platform_id),
+    ):
+        # Zeroed first, so a facet whose last game went away is covered by the
+        # same two statements as one that gained games. The alternative is an
+        # anti-join for the empties, and these tables are hundreds of rows.
+        await db.execute(sa.update(model).values(game_count=0))
+
+        totals = (
+            sa.select(facet_id.label("facet_id"), sa.func.count().label("total"))
+            .group_by(facet_id)
+            .subquery()
+        )
+        await db.execute(
+            sa.update(model).where(model.id == totals.c.facet_id).values(game_count=totals.c.total)
+        )
+
+    await db.commit()
+
+    async def populated(model: type[Genre] | type[Platform]) -> int:
+        return (
+            await db.execute(
+                sa.select(sa.func.count()).select_from(model).where(model.game_count > 0)
+            )
+        ).scalar_one()
+
+    counts = FacetCounts(genres=await populated(Genre), platforms=await populated(Platform))
+    logger.info("Recounted browse facets: %s", counts.summary_line())
+    return counts
 
 
 async def _resolve_taxonomy[TaxonomyT: (Genre, Platform)](

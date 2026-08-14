@@ -46,7 +46,12 @@ from app.models.review import Review
 from app.models.user import User
 from app.services import media as media_service
 from app.services import notifications, storage
-from app.services.games_import import SEED_SOURCE, load_seed_records, upsert_games
+from app.services.games_import import (
+    SEED_SOURCE,
+    load_seed_records,
+    refresh_facet_counts,
+    upsert_games,
+)
 from app.services.reviews import refresh_game_rating
 
 TEST_PASSWORD = "correct-horse-battery-staple"
@@ -165,8 +170,13 @@ async def catalog(db: AsyncSession) -> list[Game]:
     Going through `upsert_games` rather than hand-building rows means the tests
     that read the catalog also cover the writer, and that the shipped fixture is
     verified rather than assumed to parse.
+
+    The recount is the other half of that path — `app.cli.import_games` runs it
+    at the end of every run — and without it the facet lists would come back in
+    an order no real deployment ever serves.
     """
     await upsert_games(db, load_seed_records(), source=SEED_SOURCE)
+    await refresh_facet_counts(db)
     return list((await db.execute(sa.select(Game))).scalars().all())
 
 

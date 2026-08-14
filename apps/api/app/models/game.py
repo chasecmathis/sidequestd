@@ -25,11 +25,26 @@ game_platforms = sa.Table(
 )
 
 
+# Genre and Platform are the two browse facets (SPEC §6.5), and both carry a
+# denormalised `game_count`: how many catalog entries reference them.
+#
+# It is what the facet lists are ordered by, and it gets the `trending_scores`
+# treatment rather than the `rating_average` one — recomputed by a job, not on
+# every write — because nothing a member does can change it. Only a catalog
+# import can, so `app.services.games_import.refresh_facet_counts` rewrites it
+# there. The alternative, counting the 420k association rows on demand, costs
+# a tenth of a second on the two hottest reads in the app.
+#
+# No index. Both tables are small enough (23 genres, 215 platforms) that a
+# sequential scan and a sort beat one, and the sync writes every row weekly.
+
+
 class Genre(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "genres"
 
     name: Mapped[str] = mapped_column(sa.String(80), unique=True)
     slug: Mapped[str] = mapped_column(sa.String(80), unique=True)
+    game_count: Mapped[int] = mapped_column(sa.Integer, default=0, server_default=sa.text("0"))
 
 
 class Platform(UUIDPrimaryKeyMixin, Base):
@@ -37,6 +52,7 @@ class Platform(UUIDPrimaryKeyMixin, Base):
 
     name: Mapped[str] = mapped_column(sa.String(80), unique=True)
     slug: Mapped[str] = mapped_column(sa.String(80), unique=True)
+    game_count: Mapped[int] = mapped_column(sa.Integer, default=0, server_default=sa.text("0"))
 
 
 class Game(UUIDPrimaryKeyMixin, TimestampMixin, Base):

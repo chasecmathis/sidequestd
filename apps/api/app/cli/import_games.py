@@ -18,6 +18,9 @@ with `--after-id`, rather than starting over.
 `--drop-existing` empties the catalog first. Every reference to a game cascades,
 so that also deletes every review, backlog entry and favorite in the database; it
 asks before doing it unless `--yes` is given.
+
+Every run ends by recounting the browse facets, which is what orders the genre
+and platform chips (SPEC §6.5). Interrupting a `--all` run does not skip it.
 """
 
 from __future__ import annotations
@@ -39,6 +42,7 @@ from app.services.games_import import (
     fetch_igdb_records,
     iter_igdb_records,
     load_seed_records,
+    refresh_facet_counts,
     upsert_games,
 )
 
@@ -186,6 +190,12 @@ async def _run(args: argparse.Namespace) -> int:
         if args.drop_existing and not await _confirm_drop(assume_yes=args.yes):
             return 1
         result = await _import_all(args) if args.fetch_all else await _import_once(args)
+        # After the import, not during it: the browse chips are ordered by these
+        # numbers (SPEC §6.5), and a run interrupted at page 400 still leaves
+        # them consistent with the 400 pages that did land, because `_import_all`
+        # returns what it managed rather than re-raising.
+        async with SessionLocal() as session:
+            facets = await refresh_facet_counts(session)
     except IgdbNotConfiguredError as exc:
         print(exc.detail, file=sys.stderr)
         print("Re-run without --igdb to import the bundled seed fixture.", file=sys.stderr)
@@ -194,6 +204,7 @@ async def _run(args: argparse.Namespace) -> int:
         await engine.dispose()
 
     print(result.summary_line())
+    print(facets.summary_line())
     if result.skipped:
         print(f"skipped {len(result.skipped)} record(s) with no title: {result.skipped}")
     return 0

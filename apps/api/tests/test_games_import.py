@@ -6,6 +6,7 @@ import json
 import re
 import time
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
@@ -19,7 +20,7 @@ from app.cli import import_games as import_games_cli
 from app.core.config import settings
 from app.models.backlog import BacklogItem
 from app.models.enums import BacklogStatus
-from app.models.game import Game, Genre, Platform
+from app.models.game import Game, Genre, Platform, game_platforms
 from app.models.review import Review
 from app.models.user import FavoriteGame, User
 from app.services import games_import
@@ -36,6 +37,7 @@ from app.services.games_import import (
     igdb_is_configured,
     iter_igdb_records,
     load_seed_records,
+    refresh_facet_counts,
     slugify,
     upsert_games,
 )
@@ -673,6 +675,79 @@ async def test_importing_after_a_drop_starts_from_nothing(
 
     assert result.games_created == SEED_GAME_COUNT
     assert result.games_updated == 0
+
+
+# --- Facet counts -----------------------------------------------------------
+
+
+async def _counted(db: AsyncSession, name: str) -> int:
+    """What the association table actually says, independent of the column."""
+    return (
+        await db.execute(
+            sa.select(sa.func.count(game_platforms.c.game_id))
+            .select_from(Platform)
+            .outerjoin(game_platforms, game_platforms.c.platform_id == Platform.id)
+            .where(Platform.name == name)
+        )
+    ).scalar_one()
+
+
+async def test_the_recount_matches_the_association_table(db: AsyncSession) -> None:
+    await upsert_games(db, load_seed_records(), source=SEED_SOURCE)
+
+    await refresh_facet_counts(db)
+
+    for platform in (await db.execute(sa.select(Platform))).scalars().all():
+        assert platform.game_count == await _counted(db, platform.name)
+
+
+async def test_the_recount_reports_which_facets_have_games(db: AsyncSession) -> None:
+    await upsert_games(db, load_seed_records(), source=SEED_SOURCE)
+
+    counts = await refresh_facet_counts(db)
+
+    # The fixture uses 12 genres across 9 platforms; the figures the weekly
+    # sync prints are these, not the size of the lookup tables.
+    assert (counts.genres, counts.platforms) == (12, 9)
+    assert "12 genre(s)" in counts.summary_line()
+
+
+async def test_a_facet_that_lost_its_last_game_falls_back_to_zero(db: AsyncSession) -> None:
+    """The reason this is recomputed rather than incremented.
+
+    A game that drops a platform upstream deletes an association row, and a
+    counter maintained by deltas would keep counting it.
+    """
+    record = GameRecord(
+        external_id="900",
+        title="Ported Once",
+        summary=None,
+        cover_url=None,
+        release_date=None,
+        genres=("Puzzle",),
+        platforms=("Wii U",),
+    )
+    await upsert_games(db, [record], source=IGDB_SOURCE)
+    await refresh_facet_counts(db)
+    wii_u = (await db.execute(sa.select(Platform).where(Platform.slug == "wii-u"))).scalar_one()
+    assert wii_u.game_count == 1
+
+    await upsert_games(db, [replace(record, platforms=("Nintendo Switch",))], source=IGDB_SOURCE)
+    await refresh_facet_counts(db)
+
+    await db.refresh(wii_u)
+    assert wii_u.game_count == 0
+
+
+async def test_emptying_the_catalog_empties_the_counts(
+    db: AsyncSession, catalog: list[Game]
+) -> None:
+    """The lookup rows survive a drop, so their counts have to be reset with it —
+    otherwise the browse chips would rank an empty catalog by what it used to hold."""
+    await delete_all_games(db)
+
+    totals = (await db.execute(sa.select(Platform.game_count))).scalars().all()
+    assert totals and set(totals) == {0}
 
 
 # --- Running totals ---------------------------------------------------------
