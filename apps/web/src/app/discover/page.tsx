@@ -88,9 +88,13 @@ function Section({
  * `/games/discover` returns the whole catalog's genres and platforms with no
  * cap, which on a real import is a couple of hundred chips — enough to push the
  * results themselves off the screen. So the group shows a couple of rows and a
- * count, and `orderFacetOptions` pins whatever is selected to the front, which
- * is what makes collapsing safe: the chips explaining the current results are
- * always among the visible ones.
+ * count.
+ *
+ * Two things make collapsing safe. The API orders facets by how much of the
+ * catalog each covers, so the visible ones are the ones worth filtering by
+ * rather than whatever sorts first by name; and `orderFacetOptions` pins
+ * whatever is selected to the front, so the chips explaining the current
+ * results are always among them.
  */
 function FacetChips({
   legend,

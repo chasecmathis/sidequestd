@@ -51,10 +51,15 @@ export function toggleFacet(selected: string[], slug: string): string[] {
 /**
  * Selected options first, each group otherwise keeping the order the API sent.
  *
- * The catalog returns every genre and every platform, unbounded, so the browse
- * facets are shown a row at a time (see `visibleFacetOptions`). Pinning is what
- * makes that safe: whichever chips are doing the filtering sort to the front, so
- * collapsing the list can never hide the reason the results look the way they do.
+ * Keeping it matters: the API sends facets widest-coverage-first, so the chips
+ * a reader would plausibly filter by are the ones a collapsed group shows. Any
+ * re-sort here would undo that and put the catalog's 1970s chip sets back in
+ * the first row.
+ *
+ * Pinning is the other half of what makes collapsing safe (see
+ * `visibleFacetOptions`): whichever chips are doing the filtering sort to the
+ * front, so a collapsed group can never hide the reason the results look the
+ * way they do.
  */
 export function orderFacetOptions<T extends { slug: string }>(
   options: T[],

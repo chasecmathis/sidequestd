@@ -124,12 +124,27 @@ async def get_game(db: AsyncSession, game_id: uuid.UUID) -> Game:
     return game
 
 
+def _by_popularity[FacetT: (Genre, Platform)](model: type[FacetT]) -> sa.Select[tuple[FacetT]]:
+    """Facets in the order a browse UI wants them: widest coverage first.
+
+    Alphabetical is what the catalog's own names sort to, and on a real import
+    that is close to useless — the first eight platforms by name are 1970s chip
+    sets, and the client collapses the list to a couple of rows (SPEC §6.5). So
+    the chips somebody would actually filter by have to come first.
+
+    `name` breaks ties, because count alone leaves rows sharing one in whatever
+    order the scan produced them, and a facet list that reshuffles between two
+    identical requests reads as a bug.
+    """
+    return sa.select(model).order_by(model.game_count.desc(), model.name)
+
+
 async def list_genres(db: AsyncSession) -> Sequence[Genre]:
-    return (await db.execute(sa.select(Genre).order_by(Genre.name))).scalars().all()
+    return (await db.execute(_by_popularity(Genre))).scalars().all()
 
 
 async def list_platforms(db: AsyncSession) -> Sequence[Platform]:
-    return (await db.execute(sa.select(Platform).order_by(Platform.name))).scalars().all()
+    return (await db.execute(_by_popularity(Platform))).scalars().all()
 
 
 async def list_new_releases(
