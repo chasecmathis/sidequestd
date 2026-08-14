@@ -3,7 +3,8 @@
 Trending is *materialised*, not computed per request: `recompute_trending_scores`
 writes one row per game per window into `trending_scores`, and the Discover tab
 only ever reads that table. SPEC §6.11 specifies a scheduled worker; until the
-queue exists this runs from the CLI (`python -m app.cli.trending`).
+queue exists `.github/workflows/trending.yml` runs `python -m app.cli.trending
+--all-windows` daily, and the CLI is also the manual path.
 """
 
 from __future__ import annotations

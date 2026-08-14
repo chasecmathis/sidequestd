@@ -254,9 +254,10 @@ docker compose -f infra/docker-compose.prod.yml --env-file .env.production \
   exec api python -m app.cli.import_games --igdb --all
 ```
 
-`GET /games/trending` stays empty until `python -m app.cli.trending` has run, and
-it is a CLI command rather than a scheduled worker (SPEC §6.11) — put it on a
-cron before Discover matters.
+`GET /games/trending` stays empty until `python -m app.cli.trending` has run. On
+Fly that is scheduled for you (§7, *Scheduled jobs*); anywhere else, put
+`python -m app.cli.trending --all-windows` on a daily cron before Discover
+matters.
 
 ---
 
@@ -403,9 +404,42 @@ so a schema change that has to be reverted is a hand-written forward migration �
 which is the usual reason to prefer additive migrations and a two-step
 deprecation over a destructive one.
 
+### Scheduled jobs
+
+Fly has no built-in cron, and a Fly *scheduled machine* is created once and then
+keeps running the image it was created from — long after the app has moved on. So
+GitHub Actions is the scheduler and Fly runs the work:
+
+| Workflow                                | When                | Runs                                    |
+| --------------------------------------- | ------------------- | --------------------------------------- |
+| `.github/workflows/catalog-sync.yml`     | Sundays 07:00 UTC   | `app.cli.import_games --igdb --all`      |
+| `.github/workflows/trending.yml`         | Daily 06:00 UTC     | `app.cli.trending --all-windows`         |
+
+The catalog sync is weekly because a full IGDB walk burns the better part of an
+hour of machine time; trending is three aggregate queries against our own
+database and finishes in seconds, so it can afford to run daily. GitHub cron is
+UTC with no DST handling and scheduled runs on shared runners can start well
+late, so treat both times as hints.
+
+Both work the same way, and it is worth knowing why before adding a third: the
+runner has no route to the Fly private network, so `DATABASE_URL` is unreachable
+from GitHub. Each workflow resolves the app's *current* image, boots a throwaway
+machine from it with the command as its entrypoint, polls until the machine
+stops, reads the exit code back out of the machine's events, and destroys it.
+Everything the command needs comes from `fly secrets`, which Fly injects into any
+machine in the app — no job credentials live in GitHub beyond `FLY_API_TOKEN`.
+
+Two traps, both commented in the workflows: the machines pass
+`--env RUN_MIGRATIONS=false`, because `fly machine run` injects app secrets but
+**not** `fly.toml` `[env]`, and without it a scheduled job would run
+`alembic upgrade head` against production as a side effect. And `--detach` is
+required, because the attached form monitors machine *start*, not command exit.
+
+Both are `workflow_dispatch`-able from the Actions tab, which is also how you
+verify one after changing it.
+
 ### Not covered
 
-`app.cli.trending` and `app.cli.process_media` still need a schedule (SPEC
-§6.11). Fly has no built-in cron; either a scheduled machine or an external
-scheduler hitting `flyctl machine run` works. Until one exists,
-`GET /games/trending` stays empty.
+`app.cli.process_media` still needs a schedule (SPEC §6.11) — uploads schedule
+their own processing on FastAPI background tasks, so this is only the catch-up
+sweep for what a restart stranded. `trending.yml` is the pattern to copy.

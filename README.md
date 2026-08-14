@@ -193,16 +193,24 @@ Trending is materialised, not computed per request:
 ```bash
 npm run api:trending                   # the default 7d window
 npm run api:trending -- --window 24h
+npm run api:trending -- --all-windows  # 24h, 7d and 30d in one pass
 ```
 
 It aggregates reviews, backlog adds and likes inside the window. With no activity
 to aggregate `GET /games/trending` returns an empty list and Discover says so —
-it does not fall back to an arbitrary list dressed up as a ranking. SPEC §6.11
-wants this on a schedule; until the worker exists it is a CLI command.
+it does not fall back to an arbitrary list dressed up as a ranking.
 
-Trending is also the first cold-start source for recommendations, so running this
-is what makes "Recommended for you" useful to a reader who has not rated anything
-yet. See the recommendation design notes.
+In production `.github/workflows/trending.yml` runs the `--all-windows` form daily
+at 06:00 UTC, the same way `catalog-sync.yml` runs the importer: GitHub Actions is
+only the scheduler, and the work happens on a throwaway Fly machine that can reach
+the database. Daily rather than weekly because unlike the catalog walk this is
+three aggregate queries and finishes in seconds — the cadence is about how stale
+the ranking looks, not about machine time. The CLI stays as the local and
+manual-refill path.
+
+Trending is also the first cold-start source for recommendations, so this is what
+makes "Recommended for you" useful to a reader who has not rated anything yet. See
+the recommendation design notes.
 
 ---
 
@@ -676,8 +684,9 @@ Upload is synchronous and cheap; processing is not:
   ```
 
   `process_media` only ever advances a row out of `PENDING`, so the two cannot
-  double-process the same item. SPEC §6.11 wants this on a schedule; same
-  reasoning as the trending CLI.
+  double-process the same item. SPEC §6.11 wants this on a schedule; it is the
+  last CLI still without one, and `.github/workflows/trending.yml` is the pattern
+  to copy when it gets one.
 
 **Known gap:** SPEC §9 asks for EXIF/location stripping on uploaded media. That
 is not implemented — the stored original keeps its metadata. Thumbnails are
@@ -706,8 +715,10 @@ rough at the edges.
   a role with CREATE on the database. That is the master user on RDS/Cloud SQL,
   where pg_trgm is allow-listed; if migrations run as a restricted role, have a
   DBA install the extension once and the migration becomes a no-op.
-- Trending is a CLI command, not a scheduled worker yet. Put `npm run api:trending`
-  on a cron (or move it into the queue) before Discover matters.
+- Trending is scheduled (`.github/workflows/trending.yml`, daily) but the scoring
+  behind it is still flat-weighted with no recency decay, so an event on day 1
+  counts exactly as much as one on day 7. Tune it against real traffic before
+  Discover carries much weight.
 
 - Media processing runs in-process on FastAPI's background tasks. Move it behind
   a real queue before uploads get heavy — a 100 MB clip is read fully into memory

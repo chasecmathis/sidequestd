@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.cli import trending as trending_cli
 from app.models.backlog import BacklogItem
 from app.models.enums import BacklogStatus
 from app.models.game import Game, TrendingScore
@@ -86,6 +88,35 @@ async def test_windows_are_scored_independently(
 
     assert await db.get(TrendingScore, (catalog[0].id, TrendingWindow.DAY.value)) is None
     assert await db.get(TrendingScore, (catalog[0].id, TrendingWindow.WEEK.value)) is not None
+
+
+# --- The CLI ---------------------------------------------------------------
+
+# Argument logic only, the same way `test_games_import.py` covers its CLI. The
+# run itself opens `SessionLocal`, which is a different connection from the one
+# each test's transaction is held open on, so it would see none of the seeded
+# activity; `recompute_trending_scores` is covered directly above instead.
+
+
+def _asked_for(argv: list[str]) -> list[TrendingWindow]:
+    return trending_cli._windows(trending_cli._parse_args(argv))
+
+
+async def test_the_cli_defaults_to_one_window() -> None:
+    assert _asked_for([]) == [TrendingWindow.WEEK]
+    assert _asked_for(["--window", "24h"]) == [TrendingWindow.DAY]
+
+
+async def test_all_windows_covers_every_window_the_api_serves() -> None:
+    """The scheduled job runs this form; a missed window returns [] forever."""
+    assert _asked_for(["--all-windows"]) == list(TrendingWindow)
+
+
+async def test_a_single_window_and_all_windows_cannot_be_combined() -> None:
+    """Accepting both would silently ignore one of them."""
+    with pytest.raises(SystemExit) as exit_info:
+        trending_cli._parse_args(["--window", "24h", "--all-windows"])
+    assert exit_info.value.code == 2
 
 
 # --- The endpoint ----------------------------------------------------------

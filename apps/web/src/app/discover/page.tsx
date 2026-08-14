@@ -257,7 +257,7 @@ export default function DiscoverPage() {
         subtitle="Most activity in the last 7 days."
         games={(discover?.trending ?? []).map((entry) => entry.game)}
         loading={loading}
-        emptyNote="Nothing trending yet — trending is computed from reviews, backlog adds and likes, and those arrive in later slices. Run `npm run api:trending` once there's activity."
+        emptyNote="Nothing trending yet. Trending is built from reviews, backlog adds and likes, and refreshes once a day — log a game and it starts filling in."
       />
 
       <Section
