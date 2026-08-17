@@ -19,8 +19,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+import { SiteFooter } from "@/components/site-footer";
 import { buttonStyles } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { Wordmark } from "@/components/ui/wordmark";
 import { useAuth } from "@/lib/auth";
 
 /** The headline, split so each word can arrive on its own beat. */
@@ -84,12 +86,7 @@ export default function LandingPage() {
 
       <div className="relative mx-auto w-full max-w-5xl px-6">
         <header className="flex h-20 items-center justify-between">
-          <span className="flex items-center gap-2.5">
-            <span aria-hidden className="size-2 shrink-0 rounded-[1px] bg-accent" />
-            <span className="type-display text-xl">
-              Side<span className="italic text-fg-dim">questd</span>
-            </span>
-          </span>
+          <Wordmark />
           <Link href="/login" className={buttonStyles({ variant: "ghost", size: "sm" })}>
             Sign in
           </Link>
@@ -128,8 +125,8 @@ export default function LandingPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.72, duration: 0.6 }}
           >
-            Letterboxd for video games, with an Instagram-style social feed. Log what you play, rate
-            it, and see what your friends are into.
+            Log what you play, rate it out of five, and keep the screenshots. Then see what everyone
+            you follow is playing.
           </motion.p>
 
           <motion.div
@@ -151,7 +148,7 @@ export default function LandingPage() {
         {/* The three things the product does, set as a numbered editorial band.
             Mono numerals over a rule on each column — the same device the section
             eyebrows use everywhere else in the app. */}
-        <section className="border-t border-line pb-28 pt-16">
+        <section className="border-t border-line pb-16 pt-16">
           <ul className="grid gap-10 sm:grid-cols-3 sm:gap-8">
             {PITCH.map((item, index) => (
               <motion.li
@@ -170,6 +167,12 @@ export default function LandingPage() {
           </ul>
         </section>
       </div>
+
+      {/* Outside the `max-w-5xl` column above: the footer brings its own
+          container, and its top rule should run the full width of the page
+          rather than stopping where the pitch band does. There is no mobile tab
+          bar on this route, so no extra bottom padding is needed. */}
+      <SiteFooter className="relative" />
     </main>
   );
 }

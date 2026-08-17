@@ -14,6 +14,7 @@ the same edge `content_is_visible_to` was already looking for.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -30,6 +31,7 @@ from app.models.review import MAX_RATING, MIN_RATING, Review
 from app.models.social import Follow
 from app.models.user import MAX_FAVORITE_GAMES, FavoriteGame, User
 from app.schemas.user import UserUpdate
+from app.services import media as media_service
 from app.services import storage
 from app.services.exceptions import (
     AlreadyFavoritedError,
@@ -184,10 +186,17 @@ async def set_avatar(db: AsyncSession, user: User, data: bytes) -> User:
     The previous object is deleted only after the row has been committed. Doing
     it the other way round risks deleting the image the profile still references
     if the commit then fails.
+
+    Metadata is removed before the file is stored (SPEC §9), and this path needs
+    it as much as review media does: a profile picture is very often a photo
+    straight off a phone, which is exactly the file most likely to be carrying
+    the coordinates of where its owner lives.
     """
     content_type = storage.validate_upload(data, storage.AVATAR_POLICY)
+    # Off the loop: decoding and re-encoding an image is CPU-bound.
+    clean = await asyncio.to_thread(media_service.strip_metadata, data, content_type)
     key = storage.build_key(storage.AVATAR_POLICY, user.id, content_type)
-    url = await storage.put_object(key, data, content_type)
+    url = await storage.put_object(key, clean, content_type)
 
     previous = user.avatar_url
     user.avatar_url = url

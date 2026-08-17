@@ -216,6 +216,145 @@ def render_thumbnail(data: bytes) -> tuple[bytes, int, int]:
     return buffer.getvalue(), width, height
 
 
+# --- Stripping metadata (SPEC §9) -------------------------------------------
+
+# Re-encoded to drop what the camera wrote. GIF is deliberately not on the list:
+# see `strip_image_metadata`.
+_STRIPPABLE_IMAGE_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
+
+# The boxes that remember where a clip was shot. `udta` carries the ISO 6709
+# location atom (`©xyz`) alongside the capture date and the device make and
+# model; `meta` carries the same facts in Apple's key/value form.
+_METADATA_BOXES = frozenset({b"udta", b"meta"})
+
+
+def strip_image_metadata(data: bytes, content_type: str) -> bytes:
+    """The same picture, with none of the metadata the camera wrote into it.
+
+    A phone photo carries EXIF, and EXIF carries GPS. SPEC §9 wants it gone
+    before the file is stored, which is what this does; `render_thumbnail` only
+    ever cleaned the derived thumbnail, and the original kept everything.
+
+    Three details this gets right, each of which is wrong in the obvious version:
+
+    * **Orientation is applied before it is discarded.** "Which way up is this?"
+      is itself an EXIF tag, so dropping the block without acting on it first
+      leaves every portrait photo lying on its side.
+    * **An untransformed JPEG is re-encoded losslessly.** `quality="keep"` reuses
+      the source's own quantisation tables instead of re-compressing at a guessed
+      quality, so deleting a GPS tag does not cost a generation of image quality.
+      It needs the tables the *opened* image is holding, which is why the
+      unrotated path saves `image` rather than the transposed copy.
+    * **GIF is passed through untouched.** Re-saving an animated GIF through
+      Pillow returns its first frame and nothing else, and GIF has nowhere to put
+      a location anyway — so the safe thing and the correct thing agree.
+    """
+    if content_type not in _STRIPPABLE_IMAGE_TYPES:
+        return data
+
+    try:
+        with Image.open(io.BytesIO(data)) as image:
+            image_format = image.format
+            frame = ImageOps.exif_transpose(image) or image
+            rotated = frame.size != image.size
+            source = frame if rotated else image
+
+            # `info` is where the decoder parked the EXIF block, the XMP packet
+            # and any PNG text chunks. Several of Pillow's encoders read it back
+            # when the caller does not pass `exif=` explicitly, so emptying it is
+            # what actually guarantees nothing is carried forward — merely
+            # omitting the argument is not enough, and differs between formats.
+            source.info = {}
+
+            save_kwargs: dict[str, object] = {}
+            if image_format == "JPEG":
+                save_kwargs["quality"] = 95 if rotated else "keep"
+            elif image_format == "WEBP":
+                save_kwargs["quality"] = 95
+
+            buffer = io.BytesIO()
+            source.save(buffer, format=image_format, **save_kwargs)
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
+        raise UnreadableMediaError from exc
+
+    return buffer.getvalue()
+
+
+def _type_offset(data: bytes, body_start: int, box_type: bytes) -> int:
+    """Where a box's four-character type sits, given where its body starts.
+
+    An ordinary box is `[size 4][type 4][body]`, so the type is four bytes back.
+    One that needed 64 bits for its size is `[1 4][type 4][largesize 8][body]`,
+    which puts it twelve back. Reading the type at the near offset is what tells
+    the two apart.
+    """
+    if data[body_start - 4 : body_start] == box_type:
+        return body_start - 4
+    return body_start - 12
+
+
+def _blank_box(out: bytearray, data: bytes, body_start: int, box_end: int, box_type: bytes) -> None:
+    """Turn one box into padding of exactly the same length."""
+    type_at = _type_offset(data, body_start, box_type)
+    out[type_at : type_at + 4] = b"free"
+    out[body_start:box_end] = bytes(box_end - body_start)
+
+
+def strip_video_metadata(data: bytes) -> bytes:
+    """Blank the boxes an MP4 or QuickTime file uses to remember where it was shot.
+
+    The obvious implementation — cut the offending boxes out and rejoin the rest
+    — produces a file that will not play. In a progressive MP4 the `moov` box
+    sits *before* `mdat`, so shortening it slides every byte after it, and the
+    chunk offsets in the `stco`/`co64` tables are absolute file positions. They
+    would all now be wrong, and nothing in the container records that they should
+    have moved.
+
+    So each box is overwritten where it lies instead: the 32-bit size is left
+    exactly as it was, the type is rewritten to `free`, and the payload is zeroed.
+    `free` is defined as skippable padding, every demuxer ignores it, and because
+    not one byte moves, every offset in the file stays true.
+
+    Returns `data` unchanged when there was nothing to blank, so a re-run over an
+    already-stripped library copies nothing.
+    """
+    out: bytearray | None = None
+
+    for box_type, body, end in _boxes(data, 0, len(data)):
+        if box_type != b"moov":
+            continue
+
+        for inner_type, inner_body, inner_end in _boxes(data, body, end):
+            if inner_type in _METADATA_BOXES:
+                if out is None:
+                    out = bytearray(data)
+                _blank_box(out, data, inner_body, inner_end, inner_type)
+            elif inner_type == b"trak":
+                # A track can carry its own copy of both.
+                for trak_type, trak_body, trak_end in _boxes(data, inner_body, inner_end):
+                    if trak_type in _METADATA_BOXES:
+                        if out is None:
+                            out = bytearray(data)
+                        _blank_box(out, data, trak_body, trak_end, trak_type)
+
+    return bytes(out) if out is not None else data
+
+
+def strip_metadata(data: bytes, content_type: str) -> bytes:
+    """Remove the metadata from an upload, whatever kind it is.
+
+    The one entry point the upload paths call. Anything unrecognised is returned
+    untouched rather than refused: this runs after validation, so a type that got
+    this far is one we accept, and a format we cannot clean is not a reason to
+    drop a file the user is waiting on.
+    """
+    if content_type.startswith("video/"):
+        return strip_video_metadata(data)
+    if content_type.startswith("image/"):
+        return strip_image_metadata(data, content_type)
+    return data
+
+
 # --- Processing -------------------------------------------------------------
 
 

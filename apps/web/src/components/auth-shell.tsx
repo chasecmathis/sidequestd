@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { Wordmark } from "@/components/ui/wordmark";
+
 /**
  * The frame around every unauthenticated screen.
  *
@@ -13,6 +15,11 @@ import type { ReactNode } from "react";
  * The orchid bloom behind the card is the one place in the app the accent is
  * used as light rather than as ink. It sits under the form at 8% and is what
  * keeps a near-black page from reading as an error state.
+ *
+ * Alone among the shells this one gets no `SiteFooter`. The card is centred in a
+ * `min-h-screen` column, and appending a footer would shove it off-centre to put
+ * chrome under the one flow that should be frictionless. The `footer` prop below
+ * is unrelated — it is the "Don't have an account?" line under the card.
  */
 export function AuthShell({
   title,
@@ -34,11 +41,8 @@ export function AuthShell({
 
       <div className="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col justify-center gap-16 px-6 py-16 lg:flex-row lg:items-center lg:gap-24">
         <section className="hidden max-w-sm flex-1 lg:block">
-          <Link href="/" className="flex items-center gap-2.5">
-            <span aria-hidden className="size-2 shrink-0 rounded-[1px] bg-accent" />
-            <span className="type-display text-2xl">
-              Side<span className="italic text-fg-dim">questd</span>
-            </span>
+          <Link href="/">
+            <Wordmark size="md" />
           </Link>
 
           <p className="type-display mt-10 text-4xl leading-[1.1] text-fg">
@@ -62,11 +66,8 @@ export function AuthShell({
         <div className="mx-auto w-full max-w-sm lg:mx-0">
           {/* The mark repeats here for the single-column layout, where the panel
               above is not rendered at all. */}
-          <Link href="/" className="mb-10 flex items-center justify-center gap-2.5 lg:hidden">
-            <span aria-hidden className="size-2 shrink-0 rounded-[1px] bg-accent" />
-            <span className="type-display text-xl">
-              Side<span className="italic text-fg-dim">questd</span>
-            </span>
+          <Link href="/" className="mb-10 flex justify-center lg:hidden">
+            <Wordmark />
           </Link>
 
           <div className="rounded-xl border border-line bg-surface p-6 shadow-2xl shadow-black/50 sm:p-7">

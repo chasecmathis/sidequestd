@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import io
 from collections.abc import Awaitable, Callable
 
 import pytest
 from httpx import AsyncClient
+from PIL import Image
 
 from app.models.user import User
 from app.services import storage
@@ -128,6 +130,30 @@ async def test_uploading_an_avatar_stores_it_and_sets_the_url(
     assert url is not None
     assert len(object_store.keys) == 1
     assert url.endswith(object_store.keys[0])
+
+
+async def test_an_avatars_camera_metadata_is_stripped_before_it_is_stored(
+    client: AsyncClient, headers: dict[str, str], object_store: FakeObjectStore
+) -> None:
+    """SPEC §9, on the path most likely to carry a home address.
+
+    A profile picture is very often a photo straight off a phone, so this path
+    needs stripping as much as review media does — and it is the easier one to
+    forget, since it does not go through the media pipeline at all.
+    """
+    exif = Image.Exif()
+    exif[0x8825] = {1: "N", 2: (51.0, 30.0, 0.0), 3: "W", 4: (0.0, 7.0, 0.0)}  # GPSInfo
+    buffer = io.BytesIO()
+    Image.new("RGB", (24, 24), "navy").save(buffer, format="JPEG", exif=exif)
+
+    response = await client.put(
+        AVATAR, headers=headers, files={"file": ("me.jpg", buffer.getvalue(), "image/jpeg")}
+    )
+
+    assert response.status_code == 200, response.text
+    stored, _ = object_store.objects[object_store.keys[0]]
+    with Image.open(io.BytesIO(stored)) as image:
+        assert dict(image.getexif()) == {}
 
 
 async def test_the_stored_key_is_server_generated_not_the_filename(

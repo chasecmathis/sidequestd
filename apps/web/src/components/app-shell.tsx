@@ -19,8 +19,10 @@ import {
 } from "lucide-react";
 
 import { Avatar } from "@/components/avatar";
+import { SiteFooter } from "@/components/site-footer";
 import { buttonStyles } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Wordmark } from "@/components/ui/wordmark";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/cn";
 import { NOTIFICATIONS_PATH, badgeAriaLabel, badgeLabel } from "@/lib/notifications";
@@ -47,25 +49,6 @@ const NAV: NavItem[] = [
   { href: "/discover", label: "Discover", icon: Compass },
   { href: "/search", label: "Search", icon: Search },
 ];
-
-/**
- * The wordmark.
- *
- * An orchid square, then the name split across the display serif's two styles.
- * The accent is a *filled shape* rather than coloured letters, which is the
- * palette rule the rest of the app follows — and the roman/italic pairing gives
- * the mark its character without needing a second colour to find the seam.
- */
-function Wordmark({ className }: { className?: string }) {
-  return (
-    <span className={cn("flex items-center gap-2.5", className)}>
-      <span aria-hidden className="size-2 shrink-0 rounded-[1px] bg-accent" />
-      <span className="type-display text-xl">
-        Side<span className="italic text-fg-dim">questd</span>
-      </span>
-    </span>
-  );
-}
 
 /**
  * One nav destination, in both layouts.
@@ -251,7 +234,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   ];
 
   return (
-    <div className="min-h-screen">
+    // A flex column so `main` can take the slack: on a short screen — an empty
+    // feed, a 404 — the footer belongs at the bottom of the viewport rather than
+    // floating halfway up it.
+    <div className="flex min-h-screen flex-col">
       {/* Opaque rather than blurred. A backdrop-filter would make this element a
           containing block, and the nav inside it is `fixed` to the bottom of the
           viewport on mobile — it would anchor to the header instead. The solid
@@ -307,9 +293,18 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      {/* The bottom padding clears the mobile tab bar, which is fixed and would
-          otherwise sit on top of the last row of whatever is on screen. */}
-      <main className="mx-auto w-full max-w-5xl px-5 pb-28 pt-10 sm:px-6 md:pb-20">{children}</main>
+      <main className="mx-auto w-full max-w-5xl flex-1 px-5 pb-16 pt-10 sm:px-6">{children}</main>
+
+      {/* The tab-bar clearance lives here rather than on `main`.
+
+          `main` used to carry `pb-28 md:pb-20`, because the mobile nav is
+          `fixed inset-x-0 bottom-0` and would otherwise cover the last row of
+          content. Now that something follows `main`, that padding would open a
+          gap above the footer *and* leave the footer itself underneath the bar —
+          so it moves to the last element on the page, which is what actually
+          needs to clear it. Above `md` the nav is back in the header and only
+          ordinary breathing room is left. */}
+      <SiteFooter className="pb-28 md:pb-10" />
     </div>
   );
 }

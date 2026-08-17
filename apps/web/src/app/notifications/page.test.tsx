@@ -38,6 +38,18 @@ vi.mock("@/lib/notifications-store", () => ({
   useNotifications: () => ({ unreadCount, markRead, refresh: vi.fn() }),
 }));
 
+/**
+ * The one notification row, found inside `main`.
+ *
+ * Scoped rather than a bare `findByRole("listitem")`: the app shell now ends in
+ * a footer whose link columns are lists too, so an unscoped query matches those
+ * as well and throws on "found multiple". Every one of these tests renders a
+ * single notification, so `main` still contains exactly one row.
+ */
+function findRow(): Promise<HTMLElement> {
+  return within(screen.getByRole("main")).findByRole("listitem");
+}
+
 function me(): UserMe {
   return {
     id: "me",
@@ -130,7 +142,7 @@ describe("NotificationsPage", () => {
 
     render(<NotificationsPage />);
 
-    const row = await screen.findByRole("listitem");
+    const row = await findRow();
     expect(within(row).getByText("Dwayne Hicks")).toBeInTheDocument();
     expect(row).toHaveTextContent("started following you");
   });
@@ -152,7 +164,7 @@ describe("NotificationsPage", () => {
 
     render(<NotificationsPage />);
 
-    const row = await screen.findByRole("listitem");
+    const row = await findRow();
     const links = within(row).getAllByRole("link");
     expect(links.map((link) => link.getAttribute("href"))).toContain("/reviews/r1");
   });
@@ -223,7 +235,7 @@ describe("NotificationsPage", () => {
     respondWith(notification({ id: "a", is_read: true }));
 
     render(<NotificationsPage />);
-    await screen.findByRole("listitem");
+    await findRow();
 
     expect(screen.queryByRole("button", { name: "Mark all read" })).not.toBeInTheDocument();
   });

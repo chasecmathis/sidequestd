@@ -164,6 +164,88 @@ body::after {
 }
 
 /**
+ * Policy prose.
+ *
+ * `/privacy` and `/terms` are the only two screens in the app that are a
+ * *document* rather than an interface — a couple of thousand words of headings,
+ * paragraphs and lists, with no components in them. Setting that with utility
+ * classes would mean repeating the same six strings a hundred times and getting
+ * one of them wrong, so the element styles live here instead. `prose-review`
+ * above is the same idea at a smaller scale.
+ *
+ * The measure is slightly wider than a review's: a policy is read in a sitting
+ * rather than glanced at, and a longer line means fewer of them.
+ */
+@utility prose-legal {
+  max-width: 68ch;
+
+  & > *:first-child {
+    margin-top: 0;
+  }
+
+  & h2 {
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    color: var(--color-fg);
+    margin-top: 3rem;
+    margin-bottom: 1.25rem;
+  }
+
+  & h3 {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--color-fg);
+    margin-top: 2rem;
+    margin-bottom: 0.625rem;
+  }
+
+  & p {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: var(--color-fg-dim);
+    margin-bottom: 1rem;
+  }
+
+  & ul {
+    margin-bottom: 1rem;
+    padding-left: 1.15rem;
+  }
+
+  & li {
+    list-style: disc;
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: var(--color-fg-dim);
+    margin-bottom: 0.5rem;
+  }
+
+  & li::marker {
+    color: var(--color-fg-faint);
+  }
+
+  & strong {
+    color: var(--color-fg);
+    font-weight: 500;
+  }
+
+  /* The `link` utility, inlined: a document sets its links through the cascade
+     rather than by tagging every anchor with a class. */
+  & a {
+    color: var(--color-fg);
+    text-decoration: underline;
+    text-decoration-color: var(--color-line-strong);
+    text-underline-offset: 3px;
+    transition: text-decoration-color 150ms var(--ease-out);
+  }
+
+  & a:hover {
+    text-decoration-color: var(--color-accent);
+  }
+}
+
+/**
  * Links.
  *
  * This is how a text link gets the accent without becoming coloured text, which

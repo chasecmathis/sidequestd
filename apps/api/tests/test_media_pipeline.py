@@ -174,6 +174,129 @@ def test_a_transparent_png_thumbnails_without_an_alpha_channel() -> None:
         assert rendered.mode == "RGB"
 
 
+# --- Stripping metadata (SPEC §9) -------------------------------------------
+
+
+def _jpeg_with_gps() -> bytes:
+    """A photo carrying the coordinates it was taken at, as a phone would write it."""
+    exif = Image.Exif()
+    exif[0x0110] = "TestPhone"  # Model
+    exif[0x8825] = {1: "N", 2: (51.0, 30.0, 0.0), 3: "W", 4: (0.0, 7.0, 0.0)}  # GPSInfo
+
+    buffer = io.BytesIO()
+    Image.new("RGB", (40, 20), "navy").save(buffer, format="JPEG", quality=90, exif=exif)
+    return buffer.getvalue()
+
+
+def _jpeg_sideways() -> bytes:
+    """A landscape frame that EXIF says to display rotated a quarter turn."""
+    exif = Image.Exif()
+    exif[0x0112] = 6  # Orientation: rotate 90° clockwise
+
+    buffer = io.BytesIO()
+    Image.new("RGB", (40, 20), "navy").save(buffer, format="JPEG", quality=90, exif=exif)
+    return buffer.getvalue()
+
+
+def _animated_gif(frames: int = 4) -> bytes:
+    colours = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0)]
+    images = [Image.new("RGB", (6, 6), colours[i % 4]).convert("P") for i in range(frames)]
+
+    buffer = io.BytesIO()
+    images[0].save(buffer, format="GIF", save_all=True, append_images=images[1:], loop=0)
+    return buffer.getvalue()
+
+
+def _mp4_with_location() -> bytes:
+    """An MP4 with a location atom, a track-level `udta`, and a chunk offset table.
+
+    The `stco` is the point: its 4096 is an *absolute* file offset, so it is the
+    thing that breaks if the metadata boxes are cut out rather than blanked.
+    """
+    ftyp = _box(b"ftyp", b"isom" + struct.pack(">I", 512) + b"isom")
+    mvhd = _box(b"mvhd", struct.pack(">4sIIII", b"\x00" * 4, 0, 0, 1000, 5000) + bytes(80))
+    udta = _box(b"udta", _box(b"\xa9xyz", b"\x00\x14\x15\x00+51.5074-000.1278/"))
+    trak = _box(
+        b"trak",
+        _box(b"stco", struct.pack(">III", 0, 1, 4096))
+        + _box(b"udta", _box(b"\xa9nam", b"holiday")),
+    )
+    return ftyp + _box(b"moov", mvhd + udta + trak)
+
+
+def test_a_photos_gps_tags_do_not_survive_upload() -> None:
+    cleaned = media_service.strip_metadata(_jpeg_with_gps(), "image/jpeg")
+
+    with Image.open(io.BytesIO(cleaned)) as image:
+        assert dict(image.getexif()) == {}
+        # The picture itself is untouched; only what was written about it is gone.
+        assert image.size == (40, 20)
+        assert image.format == "JPEG"
+
+
+def test_orientation_is_applied_before_the_tag_carrying_it_is_dropped() -> None:
+    # Otherwise every portrait photo would come back lying on its side: "which
+    # way up is this" is itself an EXIF tag.
+    cleaned = media_service.strip_metadata(_jpeg_sideways(), "image/jpeg")
+
+    with Image.open(io.BytesIO(cleaned)) as image:
+        assert image.size == (20, 40)
+        assert dict(image.getexif()) == {}
+
+
+def test_png_text_chunks_are_dropped_too() -> None:
+    from PIL.PngImagePlugin import PngInfo
+
+    meta = PngInfo()
+    meta.add_text("Comment", "taken at home")
+    buffer = io.BytesIO()
+    Image.new("RGB", (8, 4), "red").save(buffer, format="PNG", pnginfo=meta)
+
+    cleaned = media_service.strip_metadata(buffer.getvalue(), "image/png")
+
+    with Image.open(io.BytesIO(cleaned)) as image:
+        assert "Comment" not in image.info
+
+
+def test_an_animated_gif_is_left_exactly_as_it_arrived() -> None:
+    # Re-saving one through Pillow returns its first frame and nothing else, and
+    # a GIF has nowhere to record a location — so it is passed through untouched.
+    original = _animated_gif()
+
+    cleaned = media_service.strip_metadata(original, "image/gif")
+
+    assert cleaned == original
+    with Image.open(io.BytesIO(cleaned)) as image:
+        assert image.n_frames == 4
+
+
+def test_a_clips_location_is_blanked_without_moving_a_byte() -> None:
+    original = _mp4_with_location()
+
+    cleaned = media_service.strip_metadata(original, "video/mp4")
+
+    assert b"+51.5074" not in cleaned
+    assert b"holiday" not in cleaned
+    assert b"udta" not in cleaned
+    # Same length, and the chunk offset table is untouched — which together are
+    # what say the file still plays. Shortening `moov` would slide `mdat` and
+    # leave every offset in `stco` pointing at the wrong place.
+    assert len(cleaned) == len(original)
+    assert struct.pack(">I", 4096) in cleaned
+    assert media_service.video_duration(cleaned) == 5.0
+
+
+def test_a_clip_with_nothing_to_hide_is_returned_unchanged() -> None:
+    assert media_service.strip_metadata(MP4_5S, "video/mp4") is MP4_5S
+
+
+def test_stripping_twice_changes_nothing_the_second_time() -> None:
+    # What makes the backfill in `app.cli.strip_media_metadata` safe to re-run.
+    once = media_service.strip_metadata(_mp4_with_location(), "video/mp4")
+
+    assert media_service.strip_metadata(once, "video/mp4") == once
+
+
 # --- Processing (SPEC §6.3: status transitions) -----------------------------
 
 REVIEWS = "/api/v1/reviews"
@@ -236,6 +359,26 @@ async def test_processing_fills_in_the_thumbnail_and_dimensions(
     assert (item.width, item.height) == (4, 2)
     assert item.thumbnail_url is not None
     assert item.thumbnail_url.endswith("_thumb.jpg")
+
+
+async def test_what_reaches_the_bucket_has_no_gps_in_it(
+    client: AsyncClient,
+    headers: dict[str, str],
+    review_id: uuid.UUID,
+    object_store: FakeObjectStore,
+) -> None:
+    """The assertion that actually closes the hole.
+
+    The unit tests above prove `strip_metadata` works; this proves the upload
+    path calls it. Reading the stored object rather than the response is the
+    whole point — a clean API response over a dirty bucket is the bug.
+    """
+    await attach(client, headers, review_id, _jpeg_with_gps())
+
+    assert len(object_store.keys) == 1
+    stored, _ = object_store.objects[object_store.keys[0]]
+    with Image.open(io.BytesIO(stored)) as image:
+        assert dict(image.getexif()) == {}
 
 
 async def test_the_thumbnail_is_stored_alongside_the_original(

@@ -24,6 +24,7 @@ the eager loads.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -424,8 +425,15 @@ async def attach_media(
     """Store one photo or clip against a review and queue it for processing.
 
     The limits from SPEC §6.3 are checked before anything reaches the bucket, so a
-    rejected upload leaves nothing behind. What lands is the untouched original at
-    the end of the carousel, PENDING; `app.services.media` fills in the rest.
+    rejected upload leaves nothing behind. What lands at the end of the carousel
+    is the picture the user sent with its metadata removed (SPEC §9), PENDING;
+    `app.services.media` fills in the rest.
+
+    The order is deliberate: **validate the original, store the stripped copy.**
+    The size cap and the 60-second limit have to be judged on what the user
+    actually uploaded — stripping changes the byte count, and a file must not
+    become acceptable by being cleaned. Nothing un-stripped ever reaches the
+    bucket, because the only `put_object` here is given `clean`.
     """
     review = await _owned(db, review_id, user)
     current = review.media  # eager-loaded and ordered by position
@@ -439,8 +447,13 @@ async def attach_media(
     ):
         raise MultipleVideosError
 
+    # Off the loop for the same reason thumbnailing is: stripping a 15 MB photo
+    # decodes and re-encodes it, which is real CPU work and not something to do
+    # while other requests wait.
+    clean = await asyncio.to_thread(media_service.strip_metadata, data, probe.content_type)
+
     key = storage.build_key(probe.policy, review.id, probe.content_type)
-    url = await storage.put_object(key, data, probe.content_type)
+    url = await storage.put_object(key, clean, probe.content_type)
 
     item = ReviewMedia(
         review_id=review.id,
