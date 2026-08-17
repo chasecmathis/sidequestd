@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
@@ -192,6 +192,33 @@ async def test_new_releases_are_newest_first_and_exclude_undated_games(
     dates = [card["release_date"] for card in body["new_releases"]]
     assert all(dates)
     assert dates == sorted(dates, reverse=True)
+
+
+async def test_new_releases_exclude_games_that_have_not_shipped(
+    client: AsyncClient, db: AsyncSession, catalog: list[Game]
+) -> None:
+    """Upstream dates announcements years out, and they would sort to the top."""
+    db.add(Game(title="Vaporware", slug="vaporware", release_date=date(2999, 1, 1)))
+    await db.flush()
+
+    body = (await client.get(DISCOVER)).json()
+
+    today = datetime.now(UTC).date().isoformat()
+    assert "Vaporware" not in [card["title"] for card in body["new_releases"]]
+    assert all(card["release_date"] <= today for card in body["new_releases"])
+
+
+async def test_new_releases_include_a_game_released_today(
+    client: AsyncClient, db: AsyncSession, catalog: list[Game]
+) -> None:
+    """The cutoff is inclusive: a release day is a day, not an instant."""
+    today = datetime.now(UTC).date()
+    db.add(Game(title="Out Now", slug="out-now", release_date=today))
+    await db.flush()
+
+    body = (await client.get(DISCOVER)).json()
+
+    assert body["new_releases"][0]["title"] == "Out Now"
 
 
 async def test_recommendations_are_an_honest_stub(

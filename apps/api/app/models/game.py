@@ -102,6 +102,14 @@ class Game(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             postgresql_using="gin",
             postgresql_ops={"title": "gin_trgm_ops"},
         ),
+        # Discover's "new releases" asks for the twelve highest dates at or below
+        # today on every page load. Partial because the undated rows can never
+        # answer that question, and upstream leaves a large share of them undated.
+        sa.Index(
+            "ix_games_release_date_desc",
+            sa.text("release_date DESC"),
+            postgresql_where=sa.text("release_date IS NOT NULL"),
+        ),
         # The one thing standing between a future change of upstream field — to
         # `rating`, or to a source that publishes out of 10 — and a 0-100 meter
         # quietly rendering nonsense.

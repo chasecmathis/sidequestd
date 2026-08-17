@@ -274,9 +274,10 @@ export default function DiscoverPage() {
 
       <Section
         title="New releases"
+        subtitle="Recently out. Announced games show up once they've shipped."
         games={discover?.new_releases ?? []}
         loading={loading}
-        emptyNote="No dated games in the catalog. Load the seed data with `npm run api:seed`."
+        emptyNote="Nothing released in the catalog yet. Load the seed data with `npm run api:seed`."
       />
 
       <section className="mt-16 border-t border-line pt-10">

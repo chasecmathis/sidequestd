@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any
 
 import sqlalchemy as sa
@@ -35,6 +35,16 @@ UNDATED = date(1, 1, 1)
 
 # How many rows each Discover section shows before "see all" takes over.
 DISCOVER_SECTION_SIZE = 12
+
+
+def _released_through_today() -> date:
+    """Upper bound for "released".
+
+    UTC, so the cutoff does not drift with the server's local timezone. A game
+    dated today counts as out — a release day is a day, not an instant, and the
+    alternative hides a launch from the section for its first 24 hours.
+    """
+    return datetime.now(UTC).date()
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,10 +160,16 @@ async def list_platforms(db: AsyncSession) -> Sequence[Platform]:
 async def list_new_releases(
     db: AsyncSession, *, limit: int = DISCOVER_SECTION_SIZE
 ) -> Sequence[Game]:
-    """Most recently released games that have a release date at all."""
+    """Most recently released games — dated, and dated in the past.
+
+    Upstream publishes `first_release_date` for announcements too, so without
+    the upper bound a twelve-row section fills with games nobody can play yet
+    and the catalog's actual new releases never surface.
+    """
     statement = (
         _with_related(sa.select(Game))
         .where(Game.release_date.is_not(None))
+        .where(Game.release_date <= _released_through_today())
         .order_by(Game.release_date.desc(), Game.id.desc())
         .limit(limit)
     )
