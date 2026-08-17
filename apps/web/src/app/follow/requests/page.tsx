@@ -21,6 +21,7 @@ import { UserCheck } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Avatar } from "@/components/avatar";
 import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { ListSkeleton } from "@/components/ui/skeleton";
@@ -70,25 +71,28 @@ function Row({
         </Alert>
       </div>
 
+      {/* Both were hand-rolled, and Approve put white on the accent at about
+          1.8:1 — failing AA already, and doubly wrong once the accent inverts.
+          `Button` gets `text-accent-ink` on the fill and the app's one set of
+          disabled and active states with it. */}
       <div className="flex gap-2">
-        <button
-          type="button"
+        <Button
+          variant="primary"
+          size="sm"
           disabled={pending}
           onClick={() => void answer("accept")}
           aria-label={`Approve the follow request from ${handle(request.user)}`}
-          className="rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-white transition hover:bg-accent-dim disabled:cursor-not-allowed disabled:opacity-60"
         >
           Approve
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          size="sm"
           disabled={pending}
           onClick={() => void answer("decline")}
           aria-label={`Decline the follow request from ${handle(request.user)}`}
-          className="rounded-lg border border-line px-4 py-1.5 text-sm transition hover:bg-surface disabled:cursor-not-allowed disabled:opacity-60"
         >
           Decline
-        </button>
+        </Button>
       </div>
     </li>
   );

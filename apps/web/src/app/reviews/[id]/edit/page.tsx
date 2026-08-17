@@ -275,7 +275,9 @@ export default function EditReviewPage() {
                     aria-label="Remove this file"
                     disabled={busy}
                     onClick={() => void handleRemove(item.id)}
-                    className="absolute right-1 top-1 rounded-full bg-black/75 px-1.5 py-0.5 text-xs text-white backdrop-blur-sm transition-colors duration-150 hover:bg-black disabled:opacity-50"
+                    // Scrim tokens, fixed in both themes — see the note on the
+                    // twin of this control in reviews/new.
+                    className="absolute right-1 top-1 rounded-full bg-scrim px-1.5 py-0.5 text-xs text-on-scrim backdrop-blur-sm transition-colors duration-150 hover:bg-black disabled:opacity-50"
                   >
                     ×
                   </button>

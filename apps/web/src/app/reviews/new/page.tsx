@@ -364,7 +364,10 @@ function NewReviewForm() {
                     type="button"
                     aria-label={`Remove ${item.file.name}`}
                     onClick={() => removeFile(item.url)}
-                    className="absolute right-1 top-1 rounded-full bg-black/75 px-1.5 py-0.5 text-xs text-white backdrop-blur-sm transition-colors duration-150 hover:bg-black"
+                    // Scrim tokens, which are fixed in both themes: this sits on
+                    // the reader's own screenshot, so it has no idea what is
+                    // behind it and cannot follow the page.
+                    className="absolute right-1 top-1 rounded-full bg-scrim px-1.5 py-0.5 text-xs text-on-scrim backdrop-blur-sm transition-colors duration-150 hover:bg-black"
                   >
                     ×
                   </button>

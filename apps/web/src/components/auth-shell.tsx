@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { ThemeMenu } from "@/components/theme-toggle";
 import { Wordmark } from "@/components/ui/wordmark";
 
 /**
@@ -13,8 +14,11 @@ import { Wordmark } from "@/components/ui/wordmark";
  * on a phone who reached /login already knows.
  *
  * The orchid bloom behind the card is the one place in the app the accent is
- * used as light rather than as ink. It sits under the form at 8% and is what
- * keeps a near-black page from reading as an error state.
+ * used as light rather than as ink. It is what keeps a near-black page from
+ * reading as an error state — and on the light theme it does the opposite job,
+ * stopping a pale page from reading as blank. The two need different opacities
+ * to land in the same place, which is why it is `bg-bloom` and not
+ * `bg-accent/8`.
  *
  * Alone among the shells this one gets no `SiteFooter`. The card is centred in a
  * `min-h-screen` column, and appending a footer would shove it off-centre to put
@@ -36,8 +40,15 @@ export function AuthShell({
     <main className="relative min-h-screen overflow-hidden">
       <div
         aria-hidden
-        className="pointer-events-none absolute -left-40 top-1/4 size-[38rem] rounded-full bg-accent/8 blur-[120px]"
+        className="pointer-events-none absolute -left-40 top-1/4 size-[38rem] rounded-full bg-bloom blur-[120px]"
       />
+
+      {/* Pinned to the corner rather than placed in a bar: these screens have no
+          header at all, and the alternative is that /login and /register are the
+          two places in the app where the theme cannot be changed. */}
+      <div className="absolute right-5 top-5 z-10 sm:right-6 sm:top-6">
+        <ThemeMenu />
+      </div>
 
       <div className="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col justify-center gap-16 px-6 py-16 lg:flex-row lg:items-center lg:gap-24">
         <section className="hidden max-w-sm flex-1 lg:block">
@@ -70,7 +81,7 @@ export function AuthShell({
             <Wordmark />
           </Link>
 
-          <div className="rounded-xl border border-line bg-surface p-6 shadow-2xl shadow-black/50 sm:p-7">
+          <div className="rounded-xl border border-line bg-surface p-6 shadow-panel sm:p-7">
             <h1 className="type-display text-3xl text-fg">{title}</h1>
             {subtitle ? (
               <p className="mt-2 text-sm leading-relaxed text-fg-dim">{subtitle}</p>

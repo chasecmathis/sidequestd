@@ -127,7 +127,7 @@ export default function GameDetailPage() {
         {/* The one place a shadow earns its keep: box art is a physical object,
             and lifting it off the canvas is what makes the page read as a shelf
             rather than as a record. */}
-        <div className="relative aspect-3/4 w-full max-w-[240px] shrink-0 self-start overflow-hidden rounded-lg border border-line bg-surface-2 shadow-2xl shadow-black/50">
+        <div className="relative aspect-3/4 w-full max-w-[240px] shrink-0 self-start overflow-hidden rounded-lg border border-line bg-surface-2 shadow-panel">
           {game.cover_url ? (
             <Image
               src={game.cover_url}

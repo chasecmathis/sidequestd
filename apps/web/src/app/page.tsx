@@ -74,14 +74,19 @@ export default function LandingPage() {
         // stops being a measure and starts competing with the headline.
         className="pointer-events-none absolute inset-0 opacity-30 [mask-image:linear-gradient(to_bottom,black,transparent_75%)]"
         style={{
+          // `var(--color-line)` rather than the literal it used to be: a
+          // gradient stop cannot be a Tailwind utility, but it can still read
+          // the token, and this is the hairline the rest of the page draws with.
+          // Hard-coding it meant the grid stayed dark-theme grey on the light
+          // page — the one place in the app that would have given the trick away.
           backgroundImage:
-            "linear-gradient(to right, #282634 1px, transparent 1px), linear-gradient(to bottom, #282634 1px, transparent 1px)",
+            "linear-gradient(to right, var(--color-line) 1px, transparent 1px), linear-gradient(to bottom, var(--color-line) 1px, transparent 1px)",
           backgroundSize: "88px 88px",
         }}
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -left-52 -top-40 size-[44rem] rounded-full bg-accent/8 blur-[140px]"
+        className="pointer-events-none absolute -left-52 -top-40 size-[44rem] rounded-full bg-bloom blur-[140px]"
       />
 
       <div className="relative mx-auto w-full max-w-5xl px-6">

@@ -29,6 +29,15 @@ function me(overrides: Partial<UserMe> = {}): UserMe {
 let currentUser: UserMe | null = me();
 let isLoading = false;
 
+// The shells render a theme control, which the root layout provides for in the
+// real app. Stubbed rather than wrapped, matching how auth and notifications are
+// handled just below; `importActual` keeps the module's constants real so a
+// renamed export still breaks loudly.
+vi.mock("@/lib/theme", async (importActual) => ({
+  ...(await importActual<typeof import("@/lib/theme")>()),
+  useTheme: () => ({ theme: "system" as const, resolved: "dark" as const, setTheme: vi.fn() }),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace }),
   usePathname: () => "/settings/profile",

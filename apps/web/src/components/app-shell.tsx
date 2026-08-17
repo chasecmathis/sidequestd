@@ -4,7 +4,7 @@
 import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import {
   Bell,
   Compass,
@@ -20,11 +20,13 @@ import {
 
 import { Avatar } from "@/components/avatar";
 import { SiteFooter } from "@/components/site-footer";
+import { ThemeMenu } from "@/components/theme-toggle";
 import { buttonStyles } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Wordmark } from "@/components/ui/wordmark";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/cn";
+import { useDismissable } from "@/lib/use-dismissable";
 import { NOTIFICATIONS_PATH, badgeAriaLabel, badgeLabel } from "@/lib/notifications";
 import { useNotifications } from "@/lib/notifications-store";
 import { profilePath } from "@/lib/profile";
@@ -123,23 +125,11 @@ function UserMenu({ user, onSignOut }: { user: UserMe; onSignOut: () => void }) 
   const [open, setOpen] = useState(false);
   const container = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-    function onPointerDown(event: PointerEvent) {
-      if (!container.current?.contains(event.target as Node)) setOpen(false);
-    }
-
-    document.addEventListener("keydown", onKeyDown);
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.removeEventListener("pointerdown", onPointerDown);
-    };
-  }, [open]);
+  useDismissable(
+    open,
+    container,
+    useCallback(() => setOpen(false), []),
+  );
 
   const items: { href: string; label: string; icon: LucideIcon }[] = [
     { href: profilePath(user.username), label: "Your profile", icon: User },
@@ -163,7 +153,7 @@ function UserMenu({ user, onSignOut }: { user: UserMe; onSignOut: () => void }) 
         <div
           role="menu"
           aria-label="Account"
-          className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-lg border border-line bg-surface py-1 shadow-2xl shadow-black/60"
+          className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-lg border border-line bg-surface py-1 shadow-pop"
         >
           <p className="truncate px-3 py-2 text-sm text-fg-dim">@{user.username}</p>
           <div aria-hidden className="my-1 h-px bg-line" />
@@ -266,6 +256,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-3">
+            {/* Deliberately outside the `user ?` branches below: the theme is a
+                device preference, and a signed-out visitor reading the landing
+                page has as much right to it as anyone. */}
+            <ThemeMenu />
+
             {user ? (
               <Link
                 href="/reviews/new"

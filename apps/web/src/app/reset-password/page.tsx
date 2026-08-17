@@ -6,6 +6,7 @@ import { Suspense, useState, type FormEvent } from "react";
 
 import { AuthShell } from "@/components/auth-shell";
 import { Field, FormError, FormSuccess, SubmitButton } from "@/components/form";
+import { buttonStyles } from "@/components/ui/button";
 import { ApiError, apiRequest } from "@/lib/api";
 import type { MessageResponse } from "@sidequestd/api-types";
 
@@ -60,10 +61,11 @@ function ResetPasswordForm() {
     return (
       <div className="space-y-4">
         <FormSuccess message={done} />
-        <Link
-          href="/login"
-          className="block w-full rounded-lg bg-accent px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-accent-dim"
-        >
+        {/* Was a hand-rolled `bg-accent … text-white`, which put white on the
+            luminous orchid at about 1.8:1 — already failing AA before there was
+            a second theme to worry about. `buttonStyles` gets it `text-accent-ink`,
+            which is the one token that follows the accent across both modes. */}
+        <Link href="/login" className={buttonStyles({ variant: "primary", className: "w-full" })}>
           Sign in
         </Link>
       </div>

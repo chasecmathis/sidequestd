@@ -39,10 +39,15 @@ export function ReviewTile({ review }: { review: ReviewSummary }) {
         </span>
       )}
 
-      <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-linear-to-t from-black/85 to-transparent px-2 pb-2 pt-8 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
+      {/* `over-media` pins the palette inside this scrim — the gradient is always
+          dark, because what is under it is cover art rather than one of our
+          surfaces. Without it the light theme hands `StarRating` its paper-tuned
+          amber and paints the filled stars *darker* than the empty ones against
+          the black, so the rating reads inverted. See globals.css. */}
+      <span className="over-media absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-linear-to-t from-black/85 to-transparent px-2 pb-2 pt-8 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
         <StarRating rating={review.rating} size={11} />
         {review.media_count > 1 ? (
-          <span className="type-eyebrow text-white/70">{review.media_count}</span>
+          <span className="type-eyebrow text-fg-dim">{review.media_count}</span>
         ) : null}
       </span>
     </Link>

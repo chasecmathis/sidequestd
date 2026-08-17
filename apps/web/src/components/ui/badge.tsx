@@ -19,7 +19,12 @@ const TONES: Record<Tone, string> = {
   accent: "bg-accent text-accent-ink",
   outline: "border border-line text-fg-dim",
   // For sitting on top of artwork, where the surface behind is unknown.
-  overlay: "bg-black/70 text-white backdrop-blur-sm",
+  //
+  // The one tone that does not change with the theme, and the scrim tokens are
+  // how that is said out loud. What is behind this badge is a screenshot, not
+  // one of our surfaces — it does not get lighter when the page does, so
+  // neither can the chip on top of it.
+  overlay: "bg-scrim text-on-scrim backdrop-blur-sm",
 };
 
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {

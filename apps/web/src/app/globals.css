@@ -4,7 +4,8 @@
  * Editorial Noir.
  *
  * Quiet surfaces, loud typography. Cover art is the only saturated colour on
- * screen; the chrome is near-black, hairline rules and one electric orchid.
+ * screen; the chrome is one near-neutral, hairline rules and one electric
+ * orchid.
  *
  * The governing rule, which everything below is built to hold: **the accent
  * appears as a fill, a border or a focus ring — almost never as body text.**
@@ -17,13 +18,49 @@
  * Every name below sits in a Tailwind v4 theme namespace, so it arrives as a
  * utility: `--color-surface-2` is `bg-surface-2`, `--radius-lg` is `rounded-lg`.
  * There are no `[var(--…)]` arbitrary values anywhere in the app.
+ *
+ * ---
+ *
+ * There are two modes, and they are the same design system.
+ *
+ * The mechanism is deliberately the plainest one available: `@theme` below
+ * declares each token once, with the dark value, which does two things at once —
+ * it emits `--color-canvas: #0a090d` onto `:root`, and it makes `bg-canvas`
+ * compile to `background-color: var(--color-canvas)` rather than to the literal.
+ * The `[data-theme="light"]` block near the bottom then reassigns those same
+ * names, and every utility and every hand-written `var(--color-…)` in this file
+ * follows at once.
+ *
+ * Two notes for whoever changes this next, both of which cost a build to find
+ * out:
+ *
+ *   - Not `@theme inline`, which looks like the more obvious tool for a runtime
+ *     theme. `inline` suppresses the `:root` variables and bakes values into the
+ *     utilities, which leaves the raw CSS below — `body`, `:focus-visible`,
+ *     every `@utility` — pointing at variables that no longer exist.
+ *   - Shadows cannot live in `@theme` at all, under either spelling. Tailwind
+ *     parses a `--shadow-*` token at build time and inlines its colour, so the
+ *     mode block would be ignored. They are plain properties plus a hand-written
+ *     utility instead; see `:root` below.
+ *
+ * Colours with an alpha modifier — `bg-canvas/80` — are fine: those compile to a
+ * `color-mix()` over the live variable, behind an `@supports` guard whose
+ * fallback is the dark value.
+ *
+ * A component therefore never names a mode. There is no `dark:` variant
+ * anywhere in this codebase, and adding one would be the bug.
  */
 
 @theme {
-  /* Canvas & surfaces. A near-black carrying the faintest violet cast, so the
-     greys agree with the accent rather than sitting under it — the same reason
-     they would lean warm under a warm accent. Never a blue-black: that is
-     the default dark mode everything else already looks like. */
+  /* Canvas & surfaces. Whichever mode is on, surfaces get lighter as they rise
+     — canvas is the page, `surface` is a card lifted off it, `surface-2` is an
+     inset or a hover. Inverting a theme means inverting the ramp, not the
+     relationship.
+
+     A near-black carrying the faintest violet cast, so the greys agree with the
+     accent rather than sitting under it — the same reason they would lean warm
+     under a warm accent. Never a blue-black: that is the default dark mode
+     everything else already looks like. */
   --color-canvas: #0a090d;
   --color-surface: #131218;
   --color-surface-2: #1c1b24;
@@ -35,7 +72,8 @@
      the utility reads `text-fg` instead of `text-text`. */
   --color-fg: #f1eff5;
   --color-fg-dim: #a3a0ae;
-  /* Non-essential metadata at >=14px only. Below that it fails AA. */
+  /* Non-essential metadata at >=14px only. Below that it fails AA — and the
+     light theme is tuned to the same ratio, so the rule holds in both. */
   --color-fg-faint: #6c6979;
 
   /* The only brand chroma. Light and luminous rather than a mid-tone violet:
@@ -44,13 +82,36 @@
      white text and would read muted at the same size. */
   --color-accent: #c08cff;
   --color-accent-dim: #a96ff5;
+  /* The text colour that sits *on* an accent fill. It inverts along with the
+     accent — see the light block — which is exactly why every component can say
+     `bg-accent text-accent-ink` and be correct in both modes. */
   --color-accent-ink: #12091c;
   --color-accent-wash: rgb(192 140 255 / 0.12);
+  /* The accent used as light rather than as ink: the blurred bloom behind the
+     landing headline and the auth card. A complete rgba rather than an alpha
+     modifier on `--color-accent`, because the right opacity is not the same on
+     both grounds — 8% of a luminous orchid glows on black, 8% of a deep one
+     smears grey on paper. */
+  --color-bloom: rgb(192 140 255 / 0.08);
 
   /* Semantic. */
   --color-star: #f5b942;
   --color-danger: #ff6b5a;
   --color-success: #6fd98f;
+
+  /* Fixed in both modes, and that is the point.
+
+     These are for type and chrome laid *over user media* — a cover-art scrim, a
+     badge on a screenshot, the letterboxing behind a video. What sits behind
+     them is an arbitrary photograph, not one of our surfaces, so it does not get
+     lighter when the page does. Tokens rather than a bare `bg-black/70` so the
+     next reader can see this is a decision and not a spot that was missed.
+
+     Where a whole subtree needs pinning rather than a single colour — the rating
+     inside a cover-art scrim, say — put `data-theme="dark"` on it and let the
+     custom properties inherit. See `review-tile.tsx`. */
+  --color-scrim: rgb(0 0 0 / 0.72);
+  --color-on-scrim: #ffffff;
 
   /* Shape. Tighter than a blanket rounded-2xl: an editorial card wants a corner
      you can see is deliberate, not a pill. These override Tailwind's defaults,
@@ -73,8 +134,138 @@
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
+/**
+ * Dark is the default, and stays on bare `:root`.
+ *
+ * The values are already there — `@theme` put them on `:root` — so this block
+ * only carries the two things that are not colours. Nothing here is repeated in
+ * a `[data-theme="dark"]` selector: an explicit dark choice and no choice at all
+ * should land on exactly the same declarations, and the way to guarantee that is
+ * to have only one set of them.
+ */
 :root {
   color-scheme: dark;
+
+  /* Grain opacity — see `body::after`. Not a `@theme` token because nothing
+     needs an `opacity-grain` utility; it is read once, by one rule. */
+  --grain: 0.035;
+
+  /* Elevation. A shadow is the one thing here that cannot survive an inversion
+     as an alpha: `black/70` is atmosphere on near-black and a bruise on paper.
+     So each mode supplies the whole shadow.
+
+     Plain custom properties rather than `@theme` tokens, and this is not a
+     stylistic choice — Tailwind parses a `--shadow-*` token at build time and
+     bakes its colour into `--tw-shadow`, so a mode block reassigning the name
+     would have no effect whatsoever. The two `@utility` rules below apply them
+     directly instead, which keeps the override live. */
+  --shadow-pop: 0 24px 48px -12px rgb(0 0 0 / 0.7);
+  --shadow-panel: 0 20px 40px -16px rgb(0 0 0 / 0.55);
+}
+
+/**
+ * A patch of dark, sitting on artwork.
+ *
+ * The scrim tokens above cover a flat fill and the type on it. This covers the
+ * harder case: a *subtree* over media, containing components that colour
+ * themselves from the palette and have no idea they are on a photograph.
+ *
+ * The concrete failure it fixes: the rating inside a review tile's hover scrim.
+ * `StarRating` paints filled stars `--color-star` and empty ones
+ * `--color-line-strong`, which on paper are a dark amber and a mid grey — and
+ * over a black gradient that renders the *filled* stars darker than the empty
+ * ones. The rating reads inverted, in the one theme nobody would think to check
+ * it in.
+ *
+ * Redeclaring the inherited custom properties is the whole mechanism; anything
+ * inside picks them up without being passed a prop or told which mode it is in.
+ * The values are the dark theme's, repeated deliberately — this is not "the dark
+ * theme" but "the palette for type on an arbitrary photograph", which happens to
+ * coincide with it and should not follow it if it changes.
+ */
+@utility over-media {
+  --color-fg: #f1eff5;
+  --color-fg-dim: #a3a0ae;
+  --color-star: #f5b942;
+  --color-line-strong: #3c3a4d;
+
+  color: var(--color-fg);
+}
+
+/**
+ * Elevation, applied.
+ *
+ * `shadow-pop` is for things that appear *over* the page — menus, dialogs.
+ * `shadow-panel` is for things that are part of the page but lifted off it —
+ * the auth card, a game's cover art.
+ */
+@utility shadow-pop {
+  box-shadow: var(--shadow-pop);
+}
+
+@utility shadow-panel {
+  box-shadow: var(--shadow-panel);
+}
+
+/**
+ * Light — the same rules, applied in reverse.
+ *
+ * Not white. The dark canvas is a near-black with a violet cast so the greys
+ * agree with the orchid; the light canvas is a violet-cast paper for the
+ * identical reason, and cards go *up* to near-white on top of it. A pure-white
+ * page with grey cards would invert the elevation ramp and land on the generic
+ * dashboard look this palette exists to avoid.
+ *
+ * The values are tuned to the dark theme's contrast *ratios*, not merely to the
+ * AA threshold: `fg-dim` is 7.9:1 here against 7.8:1 there, and `fg-faint` 4.1:1
+ * against 3.7:1. Both modes therefore have the same tonal rhythm, rather than
+ * one of them being flatter than the other.
+ *
+ * It wins the cascade on layer order, not on specificity — which matters,
+ * because `[data-theme="light"]` and `:root` have identical specificity and this
+ * would otherwise be a coin toss. `@theme` emits into `@layer theme`; everything
+ * hand-written in this file lands in a later layer, and a later layer beats an
+ * earlier one outright. That is why a plain attribute selector is enough here
+ * rather than something contorted.
+ */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --color-canvas: #f7f5fa;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1eef6;
+  --color-line: #e1ddea;
+  --color-line-strong: #c8c3d6;
+
+  --color-fg: #191622;
+  --color-fg-dim: #4e4a5b;
+  --color-fg-faint: #7a7688;
+
+  /* Deep rather than luminous — the mirror of the note in `@theme`. The dark
+     theme's accent on paper is a pale smudge; this one is a solid block that
+     carries white ink, so `bg-accent text-accent-ink` still reads as the one
+     unmissable action on the screen. Same hue family, opposite lightness. */
+  --color-accent: #6b3fc4;
+  --color-accent-dim: #5a31ab;
+  --color-accent-ink: #ffffff;
+  --color-accent-wash: rgb(107 63 196 / 0.1);
+  --color-bloom: rgb(107 63 196 / 0.07);
+
+  /* Amber and green go dark enough to be read as text on paper; the star in
+     particular keeps its warmth rather than turning brown. */
+  --color-star: #8a5a05;
+  --color-danger: #c2352a;
+  --color-success: #1c7a46;
+
+  /* Violet-tinted shade, never pure black: a neutral shadow on violet-cast paper
+     reads as dirt. Alpha is around a third of the dark theme's — a shadow on
+     light is doing separation, not atmosphere. */
+  --shadow-pop: 0 24px 48px -12px rgb(42 36 56 / 0.18);
+  --shadow-panel: 0 20px 40px -16px rgb(42 36 56 / 0.12);
+
+  /* Noise is far more visible on paper than on near-black, so the same 3.5% that
+     reads as texture there reads as a dirty screen here. */
+  --grain: 0.022;
 }
 
 html {
@@ -94,9 +285,14 @@ body {
 /**
  * Grain.
  *
- * The cheapest thing that stops a flat near-black from reading as "unstyled". One
- * fixed layer of SVG turbulence at 3.5%, over everything and clickable through —
+ * The cheapest thing that stops a flat canvas from reading as "unstyled". One
+ * fixed layer of SVG turbulence over everything and clickable through —
  * `pointer-events: none` is load-bearing, not decorative.
+ *
+ * The opacity is per-mode rather than fixed because the same noise is roughly
+ * twice as loud on paper as it is on near-black. On light it stops being
+ * atmosphere and becomes print texture, which suits the editorial reading — but
+ * only at an amount you have to look for.
  */
 body::after {
   content: "";
@@ -104,7 +300,7 @@ body::after {
   inset: 0;
   z-index: 9999;
   pointer-events: none;
-  opacity: 0.035;
+  opacity: var(--grain);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
@@ -112,9 +308,10 @@ body::after {
  * One focus ring for the whole app.
  *
  * Previously every control brought its own `focus:ring-2 focus:ring-.../50`,
- * which meant a control that forgot to had none at all. The accent on near-black is
- * the highest-contrast pair in the palette, so the accessible thing and the
- * on-brand thing are the same thing here.
+ * which meant a control that forgot to had none at all. The accent against the
+ * canvas is the highest-contrast pair in the palette in *both* modes — 8.0:1 on
+ * dark, 6.2:1 on light — so the accessible thing and the on-brand thing are the
+ * same thing here, and the ring needs no mode-specific handling.
  */
 :focus-visible {
   outline: 2px solid var(--color-accent);

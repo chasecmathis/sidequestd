@@ -24,6 +24,8 @@ function Item({ item, title }: { item: ReviewMediaItem; title: string }) {
         controls
         preload="metadata"
         src={item.url}
+        // Letterboxing, so it stays black in both themes: bars that match the
+        // page rather than the video make a 4:3 clip look like a broken layout.
         className="h-full w-full bg-black object-contain"
         aria-label={item.alt_text ?? `Clip attached to the review of ${title}`}
       />

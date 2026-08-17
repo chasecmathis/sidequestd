@@ -139,7 +139,7 @@ export function Dialog({
             transition={{ duration: 0.22 }}
             className={cn(
               "relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden",
-              "rounded-t-2xl border border-line bg-surface shadow-2xl shadow-black/70",
+              "rounded-t-2xl border border-line bg-surface shadow-pop",
               "sm:rounded-2xl",
               className,
             )}

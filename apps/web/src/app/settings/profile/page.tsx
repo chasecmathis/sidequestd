@@ -15,6 +15,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { AppShell } from "@/components/app-shell";
+import { ThemeSegments } from "@/components/theme-toggle";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import { inputStyles } from "@/components/ui/field";
 import { ProfileSkeleton } from "@/components/ui/skeleton";
 import { Avatar } from "@/components/avatar";
@@ -228,6 +230,26 @@ export default function EditProfilePage() {
 
           <SubmitButton pending={pending}>Save changes</SubmitButton>
         </form>
+
+        {/* Outside the `<form>`, and with no Save button of its own.
+
+            Everything above is account state that round-trips to the API, so it
+            batches behind a submit. The theme is a device preference held in
+            localStorage — it applies the instant it is pressed, and the whole
+            screen changing colour is a more convincing confirmation than any
+            toast. Putting it inside the form would imply it needs saving, and
+            leave it unsaved if the reader navigated away. */}
+        <section aria-labelledby="appearance" className="mt-12 border-t border-line pt-8">
+          <Eyebrow as="h2" id="appearance" rule>
+            Appearance
+          </Eyebrow>
+
+          <p className="mt-4 text-sm leading-relaxed text-fg-dim">
+            System follows whatever your device is set to, and changes with it.
+          </p>
+
+          <ThemeSegments className="mt-4 max-w-sm" />
+        </section>
       </div>
     </AppShell>
   );
