@@ -1073,6 +1073,169 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The platform accounts you have linked
+         * @description Also reports whether linking is available at all.
+         *
+         *     A deployment without a Steam Web API key cannot complete the flow, and a
+         *     connect button that always fails is worse than no button — so the client is
+         *     told rather than left to discover it at the end.
+         */
+        get: operations["read_my_connections_api_v1_me_connections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/connections/playtime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your platform playtime for one game
+         * @description What the review composer offers as a prefill.
+         *
+         *     Separate from the badge on purpose. This is a suggestion into a field the
+         *     author still owns and can overwrite; the badge is the platform's own figure
+         *     shown as evidence. Conflating them would mean either overwriting what
+         *     somebody typed or claiming their typing was verified.
+         */
+        get: operations["read_playtime_suggestion_api_v1_me_connections_playtime_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The platforms shown on someone's profile
+         * @description Empty rather than 404 when there is nothing to show.
+         *
+         *     Gated twice: `require_visible_profile` is the same follow-graph check the rest
+         *     of a profile goes through, and `is_visible` is the member's own switch for
+         *     this particular link. Both have to pass — being willing to be seen is not the
+         *     same as being willing to publish your play habits.
+         */
+        get: operations["read_profile_connections_api_v1_users__user_id__connections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connections/steam/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Begin linking a Steam account
+         * @description Hand back the Steam URL to send the member to.
+         *
+         *     Returned rather than redirected: the caller is the app's own client making an
+         *     authenticated XHR, and it needs to move its *top-level* window to this URL.
+         *     Answering with a 302 would only redirect the fetch.
+         */
+        get: operations["start_steam_link_api_v1_connections_steam_start_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connections/steam/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-sync your Steam library now
+         * @description Queue a refresh and hand back the link as it stands.
+         *
+         *     Deliberately not the finished result: a full library takes seconds to walk,
+         *     and holding the request open for it would make the button feel broken. The
+         *     client polls `GET /me/connections` for the outcome, which it needs to do
+         *     anyway for the sync the callback schedules.
+         */
+        post: operations["sync_steam_library_api_v1_connections_steam_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connections/steam/visibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Show or hide the link on your profile
+         * @description Hiding also withdraws the verified badge from this member's reviews.
+         */
+        patch: operations["update_steam_visibility_api_v1_connections_steam_visibility_patch"];
+        trace?: never;
+    };
+    "/api/v1/connections/steam": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Unlink your Steam account
+         * @description Takes the synced library with it, by cascade.
+         */
+        delete: operations["unlink_steam_api_v1_connections_steam_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -1327,6 +1490,39 @@ export interface components {
         CommentUpdate: {
             /** Text */
             text: string;
+        };
+        /**
+         * ConnectionProvider
+         * @description A gaming platform a member can link their account to.
+         *
+         *     Only Steam for now, and it is the only one with a sanctioned way in: Steam
+         *     acts as an OpenID provider and publishes owned games and playtime through a
+         *     documented Web API. PlayStation, Xbox and Nintendo have no public consumer
+         *     API, so every client for them is reverse-engineered. The enum exists rather
+         *     than a bare boolean so adding one later is a value, not a reshaping.
+         * @enum {string}
+         */
+        ConnectionProvider: "STEAM";
+        /**
+         * ConnectionStart
+         * @description Where to send the browser to begin linking.
+         */
+        ConnectionStart: {
+            /** Authorize Url */
+            authorize_url: string;
+        };
+        /**
+         * ConnectionStatus
+         * @description `GET /me/connections` — every link the caller holds, plus availability.
+         */
+        ConnectionStatus: {
+            /**
+             * Steam Available
+             * @description False when this deployment has no Steam Web API key, in which case the client should not offer the connect button at all.
+             */
+            steam_available: boolean;
+            /** Accounts */
+            accounts: components["schemas"]["LinkedAccount"][];
         };
         /** CursorPage[Annotated[Union[FeedReviewItem, FeedActivityItem, FeedRecommendedItem], FieldInfo(annotation=NoneType, required=True, discriminator='type')]] */
         CursorPage_Annotated_Union_FeedReviewItem__FeedActivityItem__FeedRecommendedItem___FieldInfo_annotation_NoneType__required_True__discriminator__type____: {
@@ -1694,6 +1890,11 @@ export interface components {
              */
             created_at: string;
             /**
+             * Store Links
+             * @description Store listings for this game. Empty until the catalog import has reached the row; entries with a null url are not addressable and should not be rendered. Absent from GameSummary on purpose — no card shows it, and a browse page should not pay for it.
+             */
+            store_links?: components["schemas"]["StoreLink"][];
+            /**
              * Release Year
              * @description Precomputed so every client renders the same year for a given date.
              */
@@ -1772,6 +1973,66 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * LinkedAccount
+         * @description The link itself, as its owner sees it.
+         */
+        LinkedAccount: {
+            provider: components["schemas"]["ConnectionProvider"];
+            /**
+             * Provider Account Id
+             * @description SteamID64 for Steam
+             */
+            provider_account_id: string;
+            /**
+             * Provider Username
+             * @description Persona name, mirrored
+             */
+            provider_username?: string | null;
+            /** Provider Avatar Url */
+            provider_avatar_url?: string | null;
+            /** Profile Url */
+            profile_url?: string | null;
+            /**
+             * Is Visible
+             * @description Whether the link shows on the member's profile
+             */
+            is_visible: boolean;
+            /**
+             * Connected At
+             * Format: date-time
+             */
+            connected_at: string;
+            /**
+             * Last Synced At
+             * @description Null until the first sync has run
+             */
+            last_synced_at?: string | null;
+            /** @description PROFILE_PRIVATE is split out from FAILED because it is the one outcome the member can fix themselves, by making their Steam game details public. */
+            last_sync_status?: components["schemas"]["PlatformSyncStatus"] | null;
+            /**
+             * Sync Cooldown Minutes
+             * @description Minutes until a manual re-sync is allowed; 0 when it is
+             * @default 0
+             */
+            sync_cooldown_minutes: number;
+            /**
+             * Total Games
+             * @default 0
+             */
+            total_games: number;
+            /**
+             * Matched Games
+             * @description How many library entries resolved to a catalog game. The rest are tools, soundtracks and games the catalog has not imported.
+             * @default 0
+             */
+            matched_games: number;
+            /**
+             * Total Playtime Minutes
+             * @default 0
+             */
+            total_playtime_minutes: number;
         };
         /**
          * LoginRequest
@@ -1942,6 +2203,53 @@ export interface components {
             slug: string;
         };
         /**
+         * PlatformShowcase
+         * @description A linked platform as it appears on somebody else's profile.
+         */
+        PlatformShowcase: {
+            provider: components["schemas"]["ConnectionProvider"];
+            /** Provider Username */
+            provider_username?: string | null;
+            /** Profile Url */
+            profile_url?: string | null;
+            /** Total Games */
+            total_games: number;
+            /** Total Playtime Minutes */
+            total_playtime_minutes: number;
+            /** Most Played */
+            most_played: components["schemas"]["ShowcaseGame"][];
+        };
+        /**
+         * PlatformSyncStatus
+         * @description The outcome of the last library sync, as the settings screen reports it.
+         *
+         *     `PROFILE_PRIVATE` is split out from `FAILED` because it is not a failure the
+         *     app can fix and it is by far the most common one: Steam answers a member
+         *     whose "Game details" are not public with an empty payload and a 200, which
+         *     is indistinguishable from an empty library unless it is looked for. The
+         *     member has to change a setting on Steam, and can only be told that if the
+         *     case is carried this far.
+         * @enum {string}
+         */
+        PlatformSyncStatus: "OK" | "PROFILE_PRIVATE" | "FAILED";
+        /**
+         * PlaytimeSuggestion
+         * @description `GET /me/connections/playtime` — a prefill for the review composer.
+         */
+        PlaytimeSuggestion: {
+            /**
+             * Game Id
+             * Format: uuid
+             */
+            game_id: string;
+            /**
+             * Playtime Minutes
+             * @description Null when no linked library has this game
+             */
+            playtime_minutes?: number | null;
+            provider?: components["schemas"]["ConnectionProvider"] | null;
+        };
+        /**
          * ProcessingStatus
          * @enum {string}
          */
@@ -2106,6 +2414,8 @@ export interface components {
              * @description What the profile grid tiles with: the first media thumbnail, falling back to the game's cover art (SPEC §6.2).
              */
             thumbnail_url: string | null;
+            /** @description Playtime the author's linked platform published for this game, when the library entry was matched by store id. Distinct from `playtime_minutes`, which is what the author typed: this one is evidence and that one is a claim. Absent when the author has no linked account, has hidden it, or the game only matched by title. */
+            verified_playtime?: components["schemas"]["VerifiedPlaytime"] | null;
             /** Media */
             media: components["schemas"]["ReviewMediaItem"][];
             /**
@@ -2222,6 +2532,8 @@ export interface components {
              * @description What the profile grid tiles with: the first media thumbnail, falling back to the game's cover art (SPEC §6.2).
              */
             thumbnail_url: string | null;
+            /** @description Playtime the author's linked platform published for this game, when the library entry was matched by store id. Distinct from `playtime_minutes`, which is what the author typed: this one is evidence and that one is a claim. Absent when the author has no linked account, has hidden it, or the game only matched by title. */
+            verified_playtime?: components["schemas"]["VerifiedPlaytime"] | null;
             /**
              * Stars
              * @description The 0.5-5.0 value from SPEC §6.3. Derived so clients cannot drift.
@@ -2243,6 +2555,59 @@ export interface components {
             review_text?: string | null;
             /** Playtime Minutes */
             playtime_minutes?: number | null;
+        };
+        /**
+         * ShowcaseGame
+         * @description One game on a profile's platform showcase.
+         */
+        ShowcaseGame: {
+            game: components["schemas"]["GameSummary"];
+            /** Playtime Minutes */
+            playtime_minutes: number;
+            /** Last Played At */
+            last_played_at?: string | null;
+        };
+        /**
+         * StoreLink
+         * @description Where a catalog entry can be bought or launched, from `game_external_ids`.
+         *
+         *     The ids arrive with the catalog import — IGDB publishes each game's store
+         *     listings — so this costs nothing to produce beyond addressing them.
+         *
+         *     `url` is nullable and the client is expected to drop the nulls.
+         *     `game_external_ids.source` is deliberately a free string rather than an enum,
+         *     so that a store appearing upstream widens the mapping instead of failing an
+         *     import; the consequence is that a source can arrive before anyone here has
+         *     written its URL template. A row we cannot address is a row we do not link,
+         *     which is a better outcome than an import that refuses a game because we do
+         *     not recognise one of its listings.
+         */
+        StoreLink: {
+            /**
+             * Source
+             * @description Store key as IGDB publishes it, e.g. 'steam'
+             */
+            source: string;
+            /**
+             * Uid
+             * @description The store's own id for the game, e.g. a Steam appid
+             */
+            uid: string;
+            /**
+             * Label
+             * @description The store's name. Falls back to the raw key rather than to nothing.
+             */
+            readonly label: string;
+            /**
+             * Url
+             * @description The listing, or null for a source with no template — see the note above.
+             *
+             *     The digit check is not redundant with the importer's own validation. This
+             *     value originates upstream and ends up in an href a reader clicks, so the
+             *     one place it becomes a URL is worth making the place that refuses to
+             *     build a strange one.
+             */
+            readonly url: string | null;
         };
         /**
          * TrendingGame
@@ -2457,6 +2822,27 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * VerifiedPlaytime
+         * @description Playtime the platform published, attached to a review at read time.
+         *
+         *     Derived on every read rather than stored on the review. That is what keeps it
+         *     honest: it cannot drift from the library it came from, and it disappears the
+         *     moment the member unlinks or hides the connection, which a column copied at
+         *     write time could not do.
+         */
+        VerifiedPlaytime: {
+            provider: components["schemas"]["ConnectionProvider"];
+            /** Playtime Minutes */
+            playtime_minutes: number;
+            /** Last Played At */
+            last_played_at?: string | null;
+        };
+        /** VisibilityUpdate */
+        VisibilityUpdate: {
+            /** Is Visible */
+            is_visible: boolean;
         };
     };
     responses: never;
@@ -4723,6 +5109,222 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    read_my_connections_api_v1_me_connections_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionStatus"];
+                };
+            };
+        };
+    };
+    read_playtime_suggestion_api_v1_me_connections_playtime_get: {
+        parameters: {
+            query: {
+                /** @description Catalog id of the game */
+                game_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaytimeSuggestion"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_profile_connections_api_v1_users__user_id__connections_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformShowcase"][];
+                };
+            };
+            /** @description That account is private and you are not approved */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_steam_link_api_v1_connections_steam_start_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionStart"];
+                };
+            };
+            /** @description Steam linking is not configured here */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sync_steam_library_api_v1_connections_steam_sync_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkedAccount"];
+                };
+            };
+            /** @description You have not linked a Steam account */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Synced too recently */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_steam_visibility_api_v1_connections_steam_visibility_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VisibilityUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkedAccount"];
+                };
+            };
+            /** @description You have not linked a Steam account */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unlink_steam_api_v1_connections_steam_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You have not linked a Steam account */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

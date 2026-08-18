@@ -20,7 +20,14 @@ from app.cli import import_games as import_games_cli
 from app.core.config import settings
 from app.models.backlog import BacklogItem
 from app.models.enums import BacklogStatus
-from app.models.game import Game, Genre, Platform, game_platforms
+from app.models.game import (
+    EXTERNAL_ID_SOURCE_STEAM,
+    Game,
+    GameExternalId,
+    Genre,
+    Platform,
+    game_platforms,
+)
 from app.models.review import Review
 from app.models.user import FavoriteGame, User
 from app.services import games_import
@@ -792,3 +799,194 @@ def test_the_cli_explains_an_impossible_combination(
 )
 def test_the_cli_accepts_the_documented_combinations(argv: list[str]) -> None:
     assert import_games_cli._reject_bad_combinations(import_games_cli._parse_args(argv)) is None
+
+
+# --- Store ids --------------------------------------------------------------
+#
+# The mapping a linked Steam library resolves through. Every test here is
+# ultimately about one property: an appid names at most one catalog game, and it
+# names the right one. A verified playtime badge is only worth showing if that
+# holds.
+
+
+async def _steam_ids(db: AsyncSession, game_id: object) -> list[str]:
+    rows = await db.execute(
+        sa.select(GameExternalId.uid)
+        .where(
+            GameExternalId.game_id == game_id,
+            GameExternalId.source == EXTERNAL_ID_SOURCE_STEAM,
+        )
+        .order_by(GameExternalId.uid)
+    )
+    return list(rows.scalars().all())
+
+
+def _with_steam(external_id: str, title: str, appid: str) -> GameRecord:
+    return GameRecord(
+        external_id=external_id,
+        title=title,
+        external_ids=((EXTERNAL_ID_SOURCE_STEAM, appid),),
+    )
+
+
+def test_the_query_asks_for_the_store_ids() -> None:
+    """Without these the Steam half of the integration has nothing to join on."""
+    query = _build_query(limit=10)
+
+    assert "external_games.uid" in query
+    # Both spellings of the source, because IGDB is mid-migration between them.
+    assert "external_games.category" in query
+    assert "external_games.external_game_source.name" in query
+
+
+def test_a_steam_id_is_read_off_the_source_name() -> None:
+    record = games_import._record_from_igdb(
+        {
+            "id": 7,
+            "name": "Stored",
+            "external_games": [
+                {"uid": "292030", "external_game_source": {"name": "Steam"}},
+            ],
+        }
+    )
+
+    assert record.external_ids == ((EXTERNAL_ID_SOURCE_STEAM, "292030"),)
+
+
+def test_a_steam_id_still_reads_off_the_deprecated_category() -> None:
+    """IGDB has not finished removing `category`, and it is what older rows carry.
+
+    The day they do finish, this branch stops matching and the source-name branch
+    above keeps working — which is the whole reason both are requested.
+    """
+    record = games_import._record_from_igdb(
+        {"id": 7, "name": "Legacy", "external_games": [{"uid": "292030", "category": 1}]}
+    )
+
+    assert record.external_ids == ((EXTERNAL_ID_SOURCE_STEAM, "292030"),)
+
+
+def test_the_source_object_wins_over_a_stale_category() -> None:
+    """A row carrying both is trusted on the field IGDB is migrating towards."""
+    record = games_import._record_from_igdb(
+        {
+            "id": 7,
+            "name": "Disagreeing",
+            "external_games": [
+                {"uid": "1", "category": 1, "external_game_source": {"name": "GOG"}},
+            ],
+        }
+    )
+
+    assert record.external_ids == ()
+
+
+def test_other_storefronts_are_not_mistaken_for_steam() -> None:
+    """The uid namespace is per-store, so a GOG id read as an appid is a wrong game."""
+    record = games_import._record_from_igdb(
+        {
+            "id": 7,
+            "name": "Everywhere",
+            "external_games": [
+                {"uid": "1207658930", "category": 5},
+                {"uid": "9NBLGGH4R315", "external_game_source": {"name": "Microsoft"}},
+                {"uid": "292030", "external_game_source": {"name": "Steam"}},
+            ],
+        }
+    )
+
+    assert record.external_ids == ((EXTERNAL_ID_SOURCE_STEAM, "292030"),)
+
+
+@pytest.mark.parametrize("uid", ["", "  ", "not-a-number", "292030x", None])
+def test_a_uid_that_is_not_an_appid_is_dropped(uid: object) -> None:
+    """IGDB stores uid as free text and a few rows carry junk in it."""
+    record = games_import._record_from_igdb(
+        {"id": 7, "name": "Junk", "external_games": [{"uid": uid, "category": 1}]}
+    )
+
+    assert record.external_ids == ()
+
+
+def test_one_appid_spelled_two_ways_is_read_once() -> None:
+    """`00292030` and `292030` are the same app, and the sync looks it up as an int."""
+    record = games_import._record_from_igdb(
+        {
+            "id": 7,
+            "name": "Padded",
+            "external_games": [
+                {"uid": "00292030", "category": 1},
+                {"uid": "292030", "category": 1},
+            ],
+        }
+    )
+
+    assert record.external_ids == ((EXTERNAL_ID_SOURCE_STEAM, "292030"),)
+
+
+def test_a_game_on_no_storefront_carries_no_ids() -> None:
+    """IGDB omits the key entirely rather than sending an empty list."""
+    assert games_import._record_from_igdb({"id": 7, "name": "Unlisted"}).external_ids == ()
+
+
+async def test_an_import_writes_the_store_id_mapping(db: AsyncSession) -> None:
+    """Also the first thing to fail if the model and the migration disagree."""
+    result = await upsert_games(db, [_with_steam("1", "Hades", "1145360")], source=SEED_SOURCE)
+
+    game = (await db.execute(sa.select(Game).where(Game.external_id == "1"))).scalar_one()
+    assert await _steam_ids(db, game.id) == ["1145360"]
+    assert result.external_ids_written == 1
+
+
+async def test_a_delisted_store_id_disappears_on_the_next_sync(db: AsyncSession) -> None:
+    await upsert_games(db, [_with_steam("1", "Hades", "1145360")], source=SEED_SOURCE)
+
+    await upsert_games(db, [_with_steam("1", "Hades", "1548850")], source=SEED_SOURCE)
+
+    game = (await db.execute(sa.select(Game).where(Game.external_id == "1"))).scalar_one()
+    assert await _steam_ids(db, game.id) == ["1548850"]
+
+
+async def test_a_record_carrying_no_ids_leaves_the_mapping_alone(db: AsyncSession) -> None:
+    """ "No ids" is how IGDB spells both "no store listings" and "not asked for".
+
+    Those cannot be told apart from the payload, so the destructive reading is the
+    wrong default: one malformed page would otherwise unmap the whole catalog and
+    silently strip every verified badge in the app.
+    """
+    await upsert_games(db, [_with_steam("1", "Hades", "1145360")], source=SEED_SOURCE)
+
+    await upsert_games(db, [GameRecord(external_id="1", title="Hades")], source=SEED_SOURCE)
+
+    game = (await db.execute(sa.select(Game).where(Game.external_id == "1"))).scalar_one()
+    assert await _steam_ids(db, game.id) == ["1145360"]
+
+
+async def test_one_appid_claimed_by_two_games_resolves_to_one(db: AsyncSession) -> None:
+    """IGDB does occasionally carry a store id on both a game and its remaster.
+
+    Writing both would make the lookup ambiguous exactly where it has to be
+    certain, so the mapping keeps one row and the newest import wins.
+    """
+    await upsert_games(
+        db,
+        [_with_steam("1", "Original", "620"), _with_steam("2", "Remaster", "620")],
+        source=SEED_SOURCE,
+    )
+
+    rows = (
+        (await db.execute(sa.select(GameExternalId).where(GameExternalId.uid == "620")))
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    remaster = (await db.execute(sa.select(Game).where(Game.external_id == "2"))).scalar_one()
+    assert rows[0].game_id == remaster.id
+
+
+async def test_dropping_a_game_takes_its_store_ids_with_it(db: AsyncSession) -> None:
+    await upsert_games(db, [_with_steam("1", "Hades", "1145360")], source=SEED_SOURCE)
+
+    await delete_all_games(db)
+
+    assert (await db.execute(sa.select(GameExternalId))).scalars().all() == []

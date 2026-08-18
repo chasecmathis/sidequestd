@@ -5,7 +5,7 @@
  * with the API — is testable without rendering anything.
  */
 import { formatStars } from "./reviews";
-import type { GameSort } from "@sidequestd/api-types";
+import type { GameSort, StoreLink } from "@sidequestd/api-types";
 
 /**
  * IGDB publishes out of 100; we store out of 10 and show out of 5.
@@ -130,4 +130,41 @@ export function igdbMeterFill(rating: number): number {
 export function ratingCountLabel(count: number | null | undefined): string | null {
   if (!count) return null;
   return `${count.toLocaleString("en-US")} ${count === 1 ? "rating" : "ratings"}`;
+}
+
+/** A store link the client can actually send somebody to. */
+export interface LinkableStore {
+  source: string;
+  label: string;
+  url: string;
+}
+
+/**
+ * The store links worth rendering — the ones with an address.
+ *
+ * The API deliberately hands over ids it has no URL template for rather than
+ * dropping them, because `source` is a free string so that a new store appearing
+ * upstream widens the catalog instead of failing an import. That leaves the
+ * filtering here, and it has to happen: a label with nowhere to go is a link
+ * that looks broken.
+ *
+ * Also tolerates the field being absent altogether, which is what an older cached
+ * response or a summary shape would give us.
+ */
+export function linkableStores(links: StoreLink[] | null | undefined): LinkableStore[] {
+  if (!Array.isArray(links)) return [];
+  return links.flatMap((link) =>
+    link.url ? [{ source: link.source, label: link.label, url: link.url }] : [],
+  );
+}
+
+/**
+ * The accessible name for a store link.
+ *
+ * Not optional. The visible text is the single word "Steam", which tells a
+ * screen-reader user nothing about which game it opens or that it leaves the
+ * site — and a page listing several links would announce the same word for each.
+ */
+export function storeLinkLabel(store: LinkableStore, gameTitle: string): string {
+  return `View ${gameTitle} on ${store.label} (opens in a new tab)`;
 }

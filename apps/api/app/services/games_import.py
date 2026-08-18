@@ -22,6 +22,7 @@ import json
 import logging
 import re
 import unicodedata
+import uuid
 from collections import Counter
 from collections.abc import AsyncIterator, Iterable, Sequence
 from dataclasses import dataclass, field
@@ -31,12 +32,21 @@ from typing import Any
 
 import httpx
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.models.backlog import BacklogItem
-from app.models.game import Game, Genre, Platform, game_genres, game_platforms
+from app.models.game import (
+    EXTERNAL_ID_SOURCE_STEAM,
+    Game,
+    GameExternalId,
+    Genre,
+    Platform,
+    game_genres,
+    game_platforms,
+)
 from app.models.review import Review
 from app.models.user import FavoriteGame
 from app.services.exceptions import IgdbNotConfiguredError
@@ -71,10 +81,29 @@ IGDB_MAIN_GAMES_FILTER = "game_type = 0"
 # present as *the* rating — `rating` alone is their members, `aggregated_rating`
 # alone is the press, and both are far sparser. It is omitted from the payload
 # entirely for a game nobody has scored, rather than sent as null.
+#
+# `external_games` is what makes a linked Steam library resolvable to catalog
+# rows. Both the source name and the legacy `category` are requested because
+# IGDB is mid-migration between them: `category` is marked deprecated in favour
+# of `external_game_source`, but it is still populated, and reading whichever one
+# arrives means this survives either side of the switch. See
+# `_steam_uids_from_igdb` for the precedence.
 IGDB_FIELDS = (
     "name, summary, first_release_date, cover.image_id, genres.name, platforms.name, "
-    "total_rating, total_rating_count"
+    "total_rating, total_rating_count, external_games.uid, external_games.category, "
+    "external_games.external_game_source.name"
 )
+
+# The legacy `external_games.category` value for Steam.
+IGDB_EXTERNAL_CATEGORY_STEAM = 1
+
+# What `external_games.external_game_source.name` reads for Steam, lowercased.
+IGDB_EXTERNAL_SOURCE_NAME_STEAM = "steam"
+
+# Steam appids are numeric. IGDB stores `uid` as a free string, and a handful of
+# rows carry junk there, so anything that is not a plain integer is dropped
+# rather than written into a column the sync will later look up by.
+_STEAM_APPID = re.compile(r"^\d{1,32}$")
 
 _SLUG_STRIP = re.compile(r"[^a-z0-9]+")
 
@@ -92,6 +121,11 @@ class GameRecord:
     platforms: tuple[str, ...] = ()
     igdb_rating: float | None = None
     igdb_rating_count: int | None = None
+    # (source, uid) pairs — the store ids this game is known by. Empty for a
+    # record from a source that does not publish them, which is not the same as
+    # "this game is on no store": `upsert_games` therefore leaves an existing
+    # mapping alone when a record carries none. See `_write_external_ids`.
+    external_ids: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(slots=True)
@@ -101,13 +135,15 @@ class ImportResult:
     games_updated: int = 0
     genres_created: int = 0
     platforms_created: int = 0
+    external_ids_written: int = 0
     skipped: list[str] = field(default_factory=list)
 
     def summary_line(self) -> str:
         return (
             f"{self.source}: {self.games_created} game(s) created, "
             f"{self.games_updated} updated, {self.genres_created} new genre(s), "
-            f"{self.platforms_created} new platform(s)"
+            f"{self.platforms_created} new platform(s), "
+            f"{self.external_ids_written} store id(s)"
         )
 
     def merge(self, other: ImportResult) -> None:
@@ -116,6 +152,7 @@ class ImportResult:
         self.games_updated += other.games_updated
         self.genres_created += other.genres_created
         self.platforms_created += other.platforms_created
+        self.external_ids_written += other.external_ids_written
         self.skipped.extend(other.skipped)
 
 
@@ -146,6 +183,14 @@ def _record_from_seed(entry: dict[str, Any]) -> GameRecord:
         platforms=tuple(entry.get("platforms", ())),
         igdb_rating=entry.get("total_rating"),
         igdb_rating_count=entry.get("total_rating_count"),
+        # Optional in the fixture. Present so the offline catalog can exercise
+        # Steam library resolution without credentials, the same way the rest of
+        # the seed data keeps the catalog testable without IGDB.
+        external_ids=(
+            ((EXTERNAL_ID_SOURCE_STEAM, str(entry["steam_appid"])),)
+            if entry.get("steam_appid")
+            else ()
+        ),
     )
 
 
@@ -267,6 +312,33 @@ async def iter_igdb_records(
                 return
 
 
+def _is_steam_external(external: dict[str, Any]) -> bool:
+    """Whether one `external_games` entry is a Steam listing.
+
+    The source object is checked first and the deprecated numeric category second,
+    so this keeps working when IGDB finishes removing `category` — at which point
+    the second branch simply stops matching anything.
+    """
+    source = external.get("external_game_source")
+    if isinstance(source, dict) and source.get("name"):
+        return str(source["name"]).strip().lower() == IGDB_EXTERNAL_SOURCE_NAME_STEAM
+    return external.get("category") == IGDB_EXTERNAL_CATEGORY_STEAM
+
+
+def _steam_uids_from_igdb(entry: dict[str, Any]) -> tuple[tuple[str, str], ...]:
+    """The Steam appids IGDB lists for one game, deduplicated and order-stable."""
+    uids: dict[str, None] = {}
+    for external in entry.get("external_games", []):
+        if not isinstance(external, dict) or not _is_steam_external(external):
+            continue
+        uid = str(external.get("uid") or "").strip()
+        if _STEAM_APPID.match(uid):
+            # Leading zeros would make two spellings of one appid, and the sync
+            # looks this up with the integer Steam hands back.
+            uids.setdefault(str(int(uid)), None)
+    return tuple((EXTERNAL_ID_SOURCE_STEAM, uid) for uid in uids)
+
+
 def _record_from_igdb(entry: dict[str, Any]) -> GameRecord:
     released = entry.get("first_release_date")
     cover = entry.get("cover") or {}
@@ -291,6 +363,7 @@ def _record_from_igdb(entry: dict[str, Any]) -> GameRecord:
         # is double precision.
         igdb_rating=float(rating) if rating is not None else None,
         igdb_rating_count=entry.get("total_rating_count"),
+        external_ids=_steam_uids_from_igdb(entry),
     )
 
 
@@ -498,6 +571,53 @@ async def _allocate_slugs(db: AsyncSession, records: Sequence[GameRecord]) -> di
     return allocated
 
 
+async def _write_external_ids(
+    db: AsyncSession, owned: Sequence[tuple[uuid.UUID, tuple[tuple[str, str], ...]]]
+) -> int:
+    """Rewrite the store-id mapping for games whose record carried one.
+
+    Only games with at least one id are touched. IGDB omits `external_games`
+    entirely for a game with no store listings, which is indistinguishable from
+    the field not having been asked for, so treating "no ids" as "delete the ids"
+    would let one malformed page silently unmap the catalog. Within a game that
+    *did* report ids the set is replaced, so a delisted store entry does
+    disappear.
+    """
+    rows = {
+        (source, uid): {"source": source, "uid": uid, "game_id": game_id}
+        # Last writer wins on a duplicate (source, uid), matching how
+        # `upsert_games` deduplicates records. Postgres refuses an ON CONFLICT
+        # that would touch the same row twice in one statement, so this has to
+        # collapse before the insert rather than after it.
+        for game_id, pairs in owned
+        for source, uid in pairs
+    }
+    if not rows:
+        return 0
+
+    affected_sources = {source for source, _ in rows}
+    game_ids = [game_id for game_id, pairs in owned if pairs]
+    await db.execute(
+        sa.delete(GameExternalId).where(
+            GameExternalId.game_id.in_(game_ids),
+            GameExternalId.source.in_(affected_sources),
+        )
+    )
+
+    statement = pg_insert(GameExternalId).values(list(rows.values()))
+    await db.execute(
+        statement.on_conflict_do_update(
+            index_elements=[GameExternalId.source, GameExternalId.uid],
+            # The uid may already belong to a game outside this batch — IGDB
+            # sometimes moves a store id between a game and its remaster. The
+            # mapping has one row per store id by design, so the newest import
+            # wins rather than the insert failing the whole page.
+            set_={"game_id": statement.excluded.game_id},
+        )
+    )
+    return len(rows)
+
+
 async def upsert_games(
     db: AsyncSession, records: Sequence[GameRecord], *, source: str
 ) -> ImportResult:
@@ -535,6 +655,7 @@ async def upsert_games(
         .all()
     }
 
+    owned_external_ids: list[tuple[Game, tuple[tuple[str, str], ...]]] = []
     writable = [record for record in deduplicated if record.title.strip()]
     result.skipped = [record.external_id for record in deduplicated if not record.title.strip()]
     slugs = await _allocate_slugs(
@@ -574,6 +695,16 @@ async def upsert_games(
         game.platforms = [
             platforms[slug] for slug in map(slugify, record.platforms) if slug in platforms
         ]
+        if record.external_ids:
+            owned_external_ids.append((game, record.external_ids))
+
+    if owned_external_ids:
+        # The newly created games have no id until they reach the database, and
+        # the mapping is keyed on it.
+        await db.flush()
+        result.external_ids_written = await _write_external_ids(
+            db, [(game.id, pairs) for game, pairs in owned_external_ids]
+        )
 
     # Once for the batch, not once per record: nothing in the loop reads the
     # database back, so there is nothing to make visible between iterations.

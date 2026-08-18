@@ -127,8 +127,15 @@ async def list_games(
 
 
 async def get_game(db: AsyncSession, game_id: uuid.UUID) -> Game:
-    result = await db.execute(_with_related(sa.select(Game)).where(Game.id == game_id))
-    game = result.scalar_one_or_none()
+    # `store_ids` is loaded here and not in `_with_related`: GameDetail is the
+    # only shape that carries store links, so the browse and Discover pages that
+    # share that helper would be paying a fourth query for a field no card reads.
+    statement = (
+        _with_related(sa.select(Game))
+        .options(selectinload(Game.store_ids))
+        .where(Game.id == game_id)
+    )
+    game = (await db.execute(statement)).scalar_one_or_none()
     if game is None:
         raise GameNotFoundError
     return game

@@ -210,3 +210,63 @@ describe("ReviewCard", () => {
     expect(screen.getByText("3 likes")).toBeInTheDocument();
   });
 });
+
+describe("ReviewCard verified playtime", () => {
+  it("shows the author's own figure when nothing is verified", () => {
+    render(<ReviewCard review={review()} />);
+
+    expect(screen.getByText("Played 15.5h")).toBeInTheDocument();
+  });
+
+  it("names the platform, so the number reads as evidence", () => {
+    render(
+      <ReviewCard
+        review={review({
+          verified_playtime: {
+            provider: "STEAM",
+            playtime_minutes: 2832,
+            last_played_at: null,
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByText("47.2h on Steam")).toBeInTheDocument();
+  });
+
+  it("never shows two playtime figures at once", () => {
+    // The author typed 15.5h and Steam says 47.2h. They are measuring the same
+    // thing, so showing both invites a reader to work out which one is lying.
+    render(
+      <ReviewCard
+        review={review({
+          playtime_minutes: 930,
+          verified_playtime: {
+            provider: "STEAM",
+            playtime_minutes: 2832,
+            last_played_at: null,
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByText("47.2h on Steam")).toBeInTheDocument();
+    expect(screen.queryByText("Played 15.5h")).not.toBeInTheDocument();
+  });
+
+  it("explains where the figure came from", () => {
+    render(
+      <ReviewCard
+        review={review({
+          verified_playtime: {
+            provider: "STEAM",
+            playtime_minutes: 2832,
+            last_played_at: null,
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByTitle(/comes from Steam, not from the reviewer/)).toBeInTheDocument();
+  });
+});

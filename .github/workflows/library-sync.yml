@@ -1,0 +1,250 @@
+name: Library sync
+
+# Re-reads every linked Steam library by running `app.cli.sync_libraries` on a
+# schedule. Without this a library is only ever pulled on connect and when the
+# member presses "Sync now", so playtime freezes at the moment somebody linked
+# and a review badged "47h on Steam" goes quietly wrong the first evening they
+# play.
+#
+# It also does something less obvious. `sync_account` re-resolves every appid
+# against `game_external_ids` on each run, so a game the weekly catalog sync has
+# only just imported cannot start matching until something triggers a sync. A
+# member whose library never re-syncs never gains the badges the catalog grew
+# for them.
+#
+# Same shape as trending.yml and catalog-sync.yml, and for the same reason: the
+# runner has no route to the Fly private network, so DATABASE_URL is unreachable
+# from GitHub. This job only launches a throwaway Fly machine from the API's own
+# image, waits for it, and reports what it did. DATABASE_URL and STEAM_API_KEY
+# come from the app's secrets, which Fly injects into any machine in the app.
+
+on:
+  schedule:
+    # Daily at 09:00 UTC. Daily because playtime moves daily — the whole point of
+    # the job is that the number stops being true as soon as somebody plays.
+    #
+    # 09:00 rather than trending's 06:00 so it lands *after* the Sunday catalog
+    # sync (07:00, up to 90 minutes), which is the run that teaches
+    # `game_external_ids` about new Steam appids. Same day in the wrong order and
+    # every member waits an extra 24 hours for badges the catalog already
+    # supports.
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Sync at most this many accounts, stalest first."
+        required: false
+        default: "500"
+
+# Two runs at once would have them syncing the same accounts and racing each
+# other's upserts. Queue rather than cancel — a run that gets part way through
+# has durably synced every account it finished, and cancelling throws away
+# nothing but also gains nothing.
+concurrency:
+  group: library-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Re-sync linked libraries
+    runs-on: ubuntu-latest
+    # A backstop against a hung flyctl, not a bound on the work: the poll loop
+    # below gives up at 30 minutes.
+    timeout-minutes: 40
+
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      FLY_APP: sidequestd-api
+      # Fixed rather than run-scoped so a machine orphaned by a cancelled run is
+      # findable and gets cleaned up by the next one.
+      MACHINE_NAME: library-sync
+      # A number rather than an empty string on scheduled runs too: the CLI
+      # rejects --limit below 1, so "all of them" has no spelling as a flag
+      # value. 500 is far above the current account count and exists only so a
+      # future run cannot walk away.
+      LIMIT: ${{ github.event.inputs.limit || '500' }}
+
+    steps:
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Check the deploy credential is present
+        run: |
+          : "${FLY_API_TOKEN:?set the FLY_API_TOKEN repository secret}"
+
+      # `fly machine run --name` fails outright if the name is taken, so a
+      # machine left behind by a cancelled run would block every future run.
+      - name: Remove a machine left behind by an earlier run
+        run: |
+          id=$(flyctl machines list --app "$FLY_APP" --json \
+               | jq -r --arg n "$MACHINE_NAME" '.[] | select(.name==$n) | .id')
+          if [ -n "$id" ]; then
+            echo "destroying orphaned machine $id"
+            flyctl machine destroy "$id" --app "$FLY_APP" --force
+          else
+            echo "no orphaned machine"
+          fi
+
+      - name: Launch the sync
+        run: |
+          # Whatever image the app is running right now, rather than a pinned
+          # digest: a scheduled machine created once would keep running the build
+          # it was created from long after the app had moved on.
+          img=$(flyctl image show --app "$FLY_APP" --json \
+                | jq -r '.[0] | "\(.Registry)/\(.Repository):\(.Tag)"')
+          echo "image: $img"
+
+          # --detach because the attached form is not a job runner: it monitors
+          # machine *start*, not command exit, and it hangs on a command that
+          # finishes quickly. The exit code is read back from the machine's
+          # events instead, in the step below.
+          #
+          # --env RUN_MIGRATIONS=false because `fly machine run` injects the
+          # app's secrets but NOT its fly.toml [env]. Without it the entrypoint
+          # defaults RUN_MIGRATIONS to true and this job would run
+          # `alembic upgrade head` against production as a side effect of a
+          # library sync. ENVIRONMENT is likewise unset and so defaults to
+          # `local`, which is what we want: the command touches only the database
+          # and Steam's Web API, and the production guardrail would otherwise
+          # refuse to boot over CORS, S3 and API_PUBLIC_URL settings this job
+          # never reads.
+          #
+          # 1024 rather than the catalog sync's 2048: this holds one account's
+          # owned-games list at a time, not a 500-game IGDB page plus its
+          # associations.
+          #
+          # The bare `--` matters. flyctl parses flags it recognises out of the
+          # trailing command, and `-c` in particular is its own --config.
+          flyctl machine run "$img" \
+            --app "$FLY_APP" \
+            --name "$MACHINE_NAME" \
+            --region iad \
+            --env RUN_MIGRATIONS=false \
+            --vm-memory 1024 \
+            --restart no \
+            --detach \
+            -- python -m app.cli.sync_libraries --limit "$LIMIT"
+
+      - name: Wait for it to finish
+        id: wait
+        run: |
+          # 30 minutes. The CLI is sequential on purpose — Steam rate limits per
+          # key — at two Web API calls per account, so this is generous for any
+          # account count the --limit above allows.
+          deadline=$((SECONDS + 1800))
+          state=""
+          missing=0
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            state=$(flyctl machines list --app "$FLY_APP" --json \
+                    | jq -r --arg n "$MACHINE_NAME" '.[] | select(.name==$n) | .state')
+            case "$state" in
+              stopped|destroyed)
+                echo "machine reached state: $state"
+                break
+                ;;
+              "")
+                # The list is eventually consistent and flyctl occasionally
+                # returns a transient empty result, so one miss is not proof the
+                # machine is gone. Three in a row (30s) is.
+                missing=$((missing + 1))
+                if [ "$missing" -ge 3 ]; then
+                  echo "::error::the sync machine disappeared before it finished"
+                  exit 1
+                fi
+                echo "machine not listed (miss $missing/3)"
+                sleep 10
+                continue
+                ;;
+            esac
+            missing=0
+            echo "state=$state; still going ($((SECONDS))s elapsed)"
+            sleep 10
+          done
+
+          if [ "$state" != "stopped" ] && [ "$state" != "destroyed" ]; then
+            # Not a data hazard. `sync_account` commits per account and
+            # `sync_all_accounts` walks last_synced_at ASC NULLS FIRST, so the
+            # cleanup step killing this mid-run leaves every account it finished
+            # durably synced and the next run resumes exactly where it stopped.
+            echo "::error::sync did not finish within 30 minutes (last state: $state); accounts already synced are committed and the next run resumes from the stalest"
+            exit 1
+          fi
+
+      # Before the exit code, so a failure has its output right above it. The
+      # command prints one `Synced N account(s): …` tally, so this is also the
+      # record of how many libraries moved and how many are sitting on a private
+      # Steam profile.
+      - name: Logs
+        if: always()
+        run: |
+          id=$(flyctl machines list --app "$FLY_APP" --json \
+               | jq -r --arg n "$MACHINE_NAME" '.[] | select(.name==$n) | .id')
+          if [ -n "$id" ]; then
+            flyctl logs --app "$FLY_APP" --machine "$id" --no-tail || true
+          else
+            echo "no machine to read logs from"
+          fi
+
+      - name: Report the result
+        run: |
+          # Fly's JSON omits exit_code entirely when it is 0, so an exit event
+          # *without* the field means the command succeeded — it is not an
+          # unreadable result. Only the absence of the whole exit event is
+          # genuinely unknown.
+          read_exit() {
+            flyctl machines list --app "$FLY_APP" --json \
+              | jq -r --arg n "$MACHINE_NAME" '
+                  .[] | select(.name==$n) | .events
+                  | (map(select(.type=="exit")) | first | .request.exit_event) as $e
+                  | if $e == null then "unknown"
+                    else "\($e.exit_code // 0) \($e.oom_killed // false)" end'
+          }
+
+          # The exit event can lag the state change that ended the wait loop, so
+          # give it a minute before calling it unreadable.
+          result="unknown"
+          for _ in 1 2 3 4 5 6; do
+            result=$(read_exit)
+            [ "$result" != "unknown" ] && break
+            echo "exit event not recorded yet; retrying"
+            sleep 10
+          done
+
+          if [ "$result" = "unknown" ]; then
+            # Never pass on a result we could not read: a silent daily failure is
+            # the whole thing this step exists to prevent.
+            echo "::error::could not read the sync's exit event"
+            exit 1
+          fi
+
+          code=${result%% *}
+          oom=${result##* }
+          echo "exit_code=$code oom_killed=$oom"
+
+          if [ "$oom" = "true" ]; then
+            echo "::error::the sync was OOM-killed; raise --vm-memory"
+            exit 1
+          fi
+
+          if [ "$code" = "0" ]; then
+            # Note that a member whose Steam "Game details" privacy is not public
+            # is *not* a failure here: the CLI counts them and exits 0, because
+            # it is their setting to change and a job that went red nightly for
+            # it would train whoever reads it to ignore the job. The count is in
+            # the logs above.
+            echo "library sync completed"
+          else
+            echo "::error::library sync failed (exit $code); see the logs above. A missing STEAM_API_KEY secret also exits 1. The run is resumable — accounts already synced are committed, and re-running picks up the stalest first."
+            exit 1
+          fi
+
+      # always(), so a failed or cancelled run does not leave a machine behind
+      # (and does not leave it billing). The cleanup step at the top is the
+      # backstop for the case where even this does not get to run.
+      - name: Clean up
+        if: always()
+        run: |
+          id=$(flyctl machines list --app "$FLY_APP" --json \
+               | jq -r --arg n "$MACHINE_NAME" '.[] | select(.name==$n) | .id')
+          if [ -n "$id" ]; then
+            flyctl machine destroy "$id" --app "$FLY_APP" --force
+          fi

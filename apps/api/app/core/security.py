@@ -27,6 +27,7 @@ from app.core.config import settings
 _hasher = PasswordHasher()
 
 TOKEN_TYPE_ACCESS: Final = "access"  # noqa: S105 - JWT claim value, not a secret
+TOKEN_TYPE_OAUTH_STATE: Final = "oauth_state"  # noqa: S105 - JWT claim value, not a secret
 _OPAQUE_TOKEN_BYTES: Final = 48
 
 
@@ -98,6 +99,63 @@ def decode_access_token(token: str) -> uuid.UUID:
 
     if payload.get("type") != TOKEN_TYPE_ACCESS:
         raise InvalidTokenError("wrong token type")
+
+    try:
+        return uuid.UUID(payload["sub"])
+    except (KeyError, ValueError) as exc:
+        raise InvalidTokenError("malformed subject") from exc
+
+
+# --- OAuth state -----------------------------------------------------------
+
+
+def create_oauth_state_token(
+    subject: uuid.UUID, provider: str, *, ttl_minutes: int, now: datetime | None = None
+) -> str:
+    """Carry the caller's identity through an external redirect.
+
+    Linking an account starts as an authenticated request but finishes as a plain
+    browser navigation from someone else's site, which cannot present a bearer
+    token. This signed, short-lived value stands in for it: it says which member
+    began the flow, and being signed with the app's key is what stops a stranger
+    from claiming to be them on the way back.
+
+    `provider` is bound into the token so a state minted for one platform cannot
+    be replayed at another's callback.
+    """
+    issued_at = now or datetime.now(UTC)
+    expires_at = issued_at + timedelta(minutes=ttl_minutes)
+    payload: dict[str, Any] = {
+        "sub": str(subject),
+        "type": TOKEN_TYPE_OAUTH_STATE,
+        "provider": provider,
+        # Freshness alone does not make two concurrent link attempts
+        # distinguishable in logs; this does.
+        "jti": uuid.uuid4().hex,
+        "iat": int(issued_at.timestamp()),
+        "exp": int(expires_at.timestamp()),
+    }
+    return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
+
+
+def decode_oauth_state_token(token: str, provider: str) -> uuid.UUID:
+    """Return the member who began the flow, or raise InvalidTokenError."""
+    try:
+        payload = jwt.decode(
+            token,
+            settings.secret_key,
+            algorithms=[settings.jwt_algorithm],
+            options={"require": ["exp", "iat", "sub"]},
+        )
+    except jwt.PyJWTError as exc:
+        raise InvalidTokenError(str(exc)) from exc
+
+    if payload.get("type") != TOKEN_TYPE_OAUTH_STATE:
+        # An access token is signed with the same key and would otherwise be
+        # accepted here, which would turn a leaked URL into a link request.
+        raise InvalidTokenError("wrong token type")
+    if payload.get("provider") != provider:
+        raise InvalidTokenError("wrong provider")
 
     try:
         return uuid.UUID(payload["sub"])

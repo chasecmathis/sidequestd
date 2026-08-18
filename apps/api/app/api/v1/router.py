@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     auth,
     backlog,
+    connections,
     feed,
     games,
     interactions,
@@ -26,3 +27,4 @@ api_router.include_router(interactions.router)
 api_router.include_router(backlog.router)
 api_router.include_router(feed.router)
 api_router.include_router(notifications.router)
+api_router.include_router(connections.router)

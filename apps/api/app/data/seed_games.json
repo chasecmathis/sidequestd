@@ -1,9 +1,10 @@
 {
-  "$comment": "Offline catalog fixture so the games slice runs with no IGDB account (SPEC §2). This is development data, not a mirror of IGDB: `external_id` records the IGDB game id where it is known, so a later live sync updates the row in place rather than duplicating it, but the ids and metadata here are best-effort and `--igdb` is the authoritative source. Cover URLs point at IGDB's public CDN and were checked to show the right game; entries whose cover could not be verified carry null, which the clients render as a 'no cover art' card. `total_rating` / `total_rating_count` are IGDB's blended score and how many ratings it is over; they are approximations here, and a few entries carry none at all so the 'no upstream score' state is reachable offline.",
+  "$comment": "Offline catalog fixture so the games slice runs with no IGDB account (SPEC §2). This is development data, not a mirror of IGDB: `external_id` records the IGDB game id where it is known, so a later live sync updates the row in place rather than duplicating it, but the ids and metadata here are best-effort and `--igdb` is the authoritative source. Cover URLs point at IGDB's public CDN and were checked to show the right game; entries whose cover could not be verified carry null, which the clients render as a 'no cover art' card. `total_rating` / `total_rating_count` are IGDB's blended score and how many ratings it is over; they are approximations here, and a few entries carry none at all so the 'no upstream score' state is reachable offline. `steam_appid` is the game's Steam store id, checked against Steam's own appdetails endpoint so each one names the game it sits on; it is what makes `game_external_ids` non-empty on a seeded database, and therefore what makes both the store link on the detail page and the verified-playtime badge reachable without a live IGDB import. Five entries deliberately carry none — Fortnite, Minecraft and the three Nintendo exclusives are genuinely not sold on Steam — which keeps the 'no store link' state reachable too.",
   "source": "seed",
   "games": [
     {
       "external_id": "1942",
+      "steam_appid": "292030",
       "title": "The Witcher 3: Wild Hunt",
       "summary": "A story-driven open world RPG set in a visually stunning fantasy universe, following monster hunter Geralt of Rivia as he searches for his adopted daughter.",
       "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co1wyy.jpg",
@@ -43,6 +44,7 @@
     },
     {
       "external_id": "119171",
+      "steam_appid": "1245620",
       "title": "Elden Ring",
       "summary": "An action RPG set in the Lands Between, made in collaboration between FromSoftware and George R. R. Martin.",
       "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co4jni.jpg",
@@ -81,6 +83,7 @@
     },
     {
       "external_id": "113112",
+      "steam_appid": "1145360",
       "title": "Hades",
       "summary": "A god-like rogue-like dungeon crawler in which you defy the god of the dead as you hack and slash out of the Underworld.",
       "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co39vc.jpg",
@@ -101,6 +104,7 @@
     },
     {
       "external_id": "1877",
+      "steam_appid": "1091500",
       "title": "Cyberpunk 2077",
       "summary": "An open-world action adventure set in Night City, a megalopolis obsessed with power, glamour and body modification.",
       "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co7497.jpg",
@@ -120,6 +124,7 @@
     },
     {
       "external_id": "1020",
+      "steam_appid": "271590",
       "title": "Grand Theft Auto V",
       "summary": "Three very different criminals team up for a series of heists across the city of Los Santos and Blaine County.",
       "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co2lbd.jpg",
@@ -156,6 +161,7 @@
     },
     {
       "external_id": "26192",
+      "steam_appid": "504230",
       "title": "Celeste",
       "summary": "Help Madeline survive her inner demons on her journey to the top of Celeste Mountain in this super-tight platformer.",
       "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co3byy.jpg",
@@ -175,6 +181,7 @@
     },
     {
       "external_id": "17000",
+      "steam_appid": "413150",
       "title": "Stardew Valley",
       "summary": "You inherited your grandfather's old farm plot. Armed with hand-me-down tools and a few coins, you set out to begin your new life.",
       "cover_url": null,
@@ -195,6 +202,7 @@
     },
     {
       "external_id": "1170",
+      "steam_appid": "367520",
       "title": "Hollow Knight",
       "summary": "Forge your own path in a classic, hand-drawn 2D action adventure through a vast, ruined kingdom of insects.",
       "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co1rgi.jpg",
@@ -215,6 +223,7 @@
     },
     {
       "external_id": "11156",
+      "steam_appid": "1145350",
       "title": "Hades II",
       "summary": "Battle beyond the Underworld as the immortal Princess of the Underworld, wielding witchcraft against the Titan of Time.",
       "cover_url": null,
@@ -230,6 +239,7 @@
     },
     {
       "external_id": "72129",
+      "steam_appid": "1086940",
       "title": "Baldur's Gate 3",
       "summary": "Gather your party and return to the Forgotten Realms in a tale of fellowship, betrayal, sacrifice and the lure of absolute power.",
       "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co670h.jpg",
@@ -249,6 +259,7 @@
     },
     {
       "external_id": "25076",
+      "steam_appid": "1174180",
       "title": "Red Dead Redemption 2",
       "summary": "America, 1899. Arthur Morgan and the Van der Linde gang are outlaws on the run at the end of the age of outlaws.",
       "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co1q1f.jpg",
@@ -267,6 +278,7 @@
     },
     {
       "external_id": "19560",
+      "steam_appid": "1593500",
       "title": "God of War",
       "summary": "Kratos lives as a man in the realm of Norse gods, teaching his son Atreus to survive a hostile world.",
       "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co1tmu.jpg",
@@ -284,6 +296,7 @@
     },
     {
       "external_id": "115276",
+      "steam_appid": "1649240",
       "title": "Returnal",
       "summary": "Break the cycle of chaos on an ever-changing alien planet in a third-person rogue-like shooter.",
       "cover_url": null,
@@ -301,6 +314,7 @@
     },
     {
       "external_id": "9927",
+      "steam_appid": "632470",
       "title": "Disco Elysium",
       "summary": "A groundbreaking role playing game where you are a detective with a unique skill system at your disposal and a whole city to carve your path across.",
       "cover_url": null,
@@ -321,6 +335,7 @@
     },
     {
       "external_id": "134595",
+      "steam_appid": "2379780",
       "title": "Balatro",
       "summary": "A poker-inspired roguelike deckbuilder about building absurd score-multiplying jokers.",
       "cover_url": null,
@@ -339,6 +354,7 @@
     },
     {
       "external_id": "27789",
+      "steam_appid": "945360",
       "title": "Among Us",
       "summary": "An online party game of teamwork and betrayal aboard a spaceship, where one of the crew is an impostor.",
       "cover_url": null,
@@ -377,6 +393,7 @@
     },
     {
       "external_id": "1085",
+      "steam_appid": "620",
       "title": "Portal 2",
       "summary": "A first-person puzzle game about thinking with portals, GLaDOS, and a small personality core called Wheatley.",
       "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co1rs4.jpg",
@@ -396,6 +413,7 @@
     },
     {
       "external_id": "1029",
+      "steam_appid": "211420",
       "title": "Dark Souls",
       "summary": "A punishing action RPG set in the dying kingdom of Lordran, where death is a mechanic rather than a failure state.",
       "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co2uro.jpg",
@@ -430,6 +448,7 @@
     },
     {
       "external_id": "125174",
+      "steam_appid": "2651280",
       "title": "Marvel's Spider-Man 2",
       "summary": "Peter Parker and Miles Morales share a New York threatened by Kraven the Hunter and the symbiote.",
       "cover_url": null,

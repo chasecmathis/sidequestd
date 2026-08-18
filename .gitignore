@@ -1,7 +1,7 @@
 # Environment. Deny every .env* and re-admit the committed templates, so a new
 # one (.env.production, say) is ignored by default rather than by remembering to
 # come back here.
-.env
+apps/api/.env
 .env.*
 !.env.example
 !.env.*.example

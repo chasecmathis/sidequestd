@@ -92,6 +92,26 @@ class Game(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     genres: Mapped[list[Genre]] = relationship(secondary=game_genres)
     platforms: Mapped[list[Platform]] = relationship(secondary=game_platforms)
 
+    # Store ids from `game_external_ids` — what the detail page turns into an
+    # outbound link, and what a linked Steam library resolves against.
+    #
+    # Named `store_ids` rather than `external_ids` because `external_id` above is
+    # already a column meaning something else entirely (the IGDB game id). A
+    # relationship one character away from it would be read as its plural by
+    # everyone who came after.
+    #
+    # `viewonly` because the importer writes this table through
+    # `games_import._write_external_ids`, which upserts on the composite key. A
+    # writable collection here would give the ORM a second, conflicting opinion
+    # about how those rows get created.
+    #
+    # Deliberately not eager-loaded by `games._with_related`: only GameDetail
+    # renders it, and a fourth selectinload on every 20-card browse page is cost
+    # for something no card shows.
+    store_ids: Mapped[list[GameExternalId]] = relationship(
+        order_by="GameExternalId.source", viewonly=True
+    )
+
     __table_args__ = (
         # Title search (SPEC §6.6) matches anywhere in the string, which the plain
         # btree on `title` cannot serve. A trigram GIN index makes both the
@@ -119,6 +139,39 @@ class Game(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         sa.CheckConstraint("rating_count >= 0", name="rating_count_non_negative"),
     )
+
+
+# The store this id belongs to. A string rather than an enum because the values
+# come from IGDB's own source list, which grows without asking us — a new store
+# appearing upstream should widen the mapping, not fail the import.
+EXTERNAL_ID_SOURCE_STEAM = "steam"
+
+
+class GameExternalId(Base):
+    """Store-level ids for a catalog entry, mirrored from IGDB's `external_games`.
+
+    This is what lets a linked Steam library resolve to catalog rows *exactly*.
+    The alternative — matching "The Witcher 3: Wild Hunt - Game of the Year
+    Edition" against `games.title` — is the kind of thing that is right almost
+    every time, which is precisely what disqualifies it: the playtime figures it
+    feeds are shown to other members as verified, and a claim that is usually
+    true is not one worth making.
+
+    `(source, uid)` is the primary key rather than an index on a surrogate, so
+    one Steam appid can only ever name one game. IGDB does occasionally carry the
+    same store id on a game and its remaster, and the import resolving that to
+    two rows would make the lookup ambiguous exactly where it has to be certain.
+    """
+
+    __tablename__ = "game_external_ids"
+
+    source: Mapped[str] = mapped_column(sa.String(32), primary_key=True)
+    uid: Mapped[str] = mapped_column(sa.String(64), primary_key=True)
+    game_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("games.id", ondelete="CASCADE"), index=True
+    )
+
+    game: Mapped[Game] = relationship()
 
 
 class TrendingScore(Base):

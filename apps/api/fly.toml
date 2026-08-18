@@ -64,6 +64,21 @@ primary_region = "iad"
   # to be the address users actually reach.
   WEB_APP_URL = "https://sidequestd.app"
 
+  # Where *this API* is reachable from a browser, which is a different question
+  # from every other address here and the only one the API says about itself.
+  #
+  # Steam OpenID needs it: the `realm` and `return_to` handed to Steam have to be
+  # absolute, they are shown to the member on Steam's own sign-in page, and Steam
+  # redirects their browser back to them. It is deliberately not derived from the
+  # request's Host header — the callback rejects an assertion whose `return_to`
+  # does not start with this value, and a check comparing a request header
+  # against itself would stop meaning anything. The library sync and the CLI have
+  # no request to derive from either.
+  #
+  # Only required once STEAM_API_KEY is set; the config guard is scoped to that,
+  # so a deploy without Steam is unaffected.
+  API_PUBLIC_URL = "https://api.sidequestd.app"
+
   # Tigris, which `fly storage create` provisions. The keys it hands back are
   # secrets and go in `fly secrets`; only the addresses are here.
   #

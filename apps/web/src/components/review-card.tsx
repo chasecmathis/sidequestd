@@ -26,6 +26,7 @@ import { useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { LikeButton } from "@/components/like-button";
 import { StarRating } from "@/components/star-rating";
+import { VerifiedPlaytimeChip } from "@/components/verified-playtime";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardFooter } from "@/components/ui/card";
 import { releaseYearLabel } from "@/lib/catalog";
@@ -132,7 +133,16 @@ export function ReviewCard({ review }: { review: ReviewSummary }) {
               <span className="type-eyebrow text-fg-faint">
                 {releaseYearLabel(review.game.release_year)}
               </span>
-              {playtime ? (
+              {/* One playtime figure, never two. When the platform has published
+                  one it supersedes the author's own: they are measuring the same
+                  thing, and a card showing "Played 40h" beside "47h on Steam"
+                  invites a reader to work out which one is lying. */}
+              {review.verified_playtime ? (
+                <>
+                  <span aria-hidden className="h-3 w-px bg-line" />
+                  <VerifiedPlaytimeChip verified={review.verified_playtime} />
+                </>
+              ) : playtime ? (
                 <>
                   <span aria-hidden className="h-3 w-px bg-line" />
                   <span className="type-eyebrow text-fg-faint">Played {playtime}</span>

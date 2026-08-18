@@ -414,20 +414,31 @@ GitHub Actions is the scheduler and Fly runs the work:
 | --------------------------------------- | ------------------- | --------------------------------------- |
 | `.github/workflows/catalog-sync.yml`     | Sundays 07:00 UTC   | `app.cli.import_games --igdb --all`      |
 | `.github/workflows/trending.yml`         | Daily 06:00 UTC     | `app.cli.trending --all-windows`         |
+| `.github/workflows/library-sync.yml`     | Daily 09:00 UTC     | `app.cli.sync_libraries --limit 500`     |
 
 The catalog sync is weekly because a full IGDB walk burns the better part of an
 hour of machine time; trending is three aggregate queries against our own
 database and finishes in seconds, so it can afford to run daily. GitHub cron is
 UTC with no DST handling and scheduled runs on shared runners can start well
-late, so treat both times as hints.
+late, so treat every time here as a hint.
 
-Both work the same way, and it is worth knowing why before adding a third: the
-runner has no route to the Fly private network, so `DATABASE_URL` is unreachable
-from GitHub. Each workflow resolves the app's *current* image, boots a throwaway
-machine from it with the command as its entrypoint, polls until the machine
-stops, reads the exit code back out of the machine's events, and destroys it.
-Everything the command needs comes from `fly secrets`, which Fly injects into any
-machine in the app — no job credentials live in GitHub beyond `FLY_API_TOKEN`.
+The one ordering that is not arbitrary is the library sync at 09:00, *after* the
+Sunday catalog sync. `sync_account` re-resolves every Steam appid against
+`game_external_ids` on each run, so the catalog sync is what makes a newly
+imported game matchable and the library sync is what actually goes and matches
+it. Same day in the wrong order and every member waits an extra 24 hours for
+badges the catalog already supports. Being cut short is safe: the CLI commits per
+account and walks stalest-first, so an interrupted run keeps what it finished and
+the next one resumes from there.
+
+All three work the same way, and it is worth knowing why before adding a fourth:
+the runner has no route to the Fly private network, so `DATABASE_URL` is
+unreachable from GitHub. Each workflow resolves the app's *current* image, boots
+a throwaway machine from it with the command as its entrypoint, polls until the
+machine stops, reads the exit code back out of the machine's events, and destroys
+it. Everything the command needs comes from `fly secrets`, which Fly injects into
+any machine in the app — no job credentials live in GitHub beyond
+`FLY_API_TOKEN`.
 
 Two traps, both commented in the workflows: the machines pass
 `--env RUN_MIGRATIONS=false`, because `fly machine run` injects app secrets but
@@ -435,8 +446,10 @@ Two traps, both commented in the workflows: the machines pass
 `alembic upgrade head` against production as a side effect. And `--detach` is
 required, because the attached form monitors machine *start*, not command exit.
 
-Both are `workflow_dispatch`-able from the Actions tab, which is also how you
-verify one after changing it.
+All three are `workflow_dispatch`-able from the Actions tab, which is also how you
+verify one after changing it. `library-sync` is the cheapest to verify: with no
+linked accounts it prints `No linked accounts to sync.` and exits 0, which still
+proves the image resolution, the secret injection and the exit-code readback.
 
 ### Not covered
 

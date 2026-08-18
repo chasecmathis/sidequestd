@@ -3278,6 +3278,276 @@
         ]
       }
     },
+    "/api/v1/me/connections": {
+      "get": {
+        "tags": [
+          "connections"
+        ],
+        "summary": "The platform accounts you have linked",
+        "description": "Also reports whether linking is available at all.\n\nA deployment without a Steam Web API key cannot complete the flow, and a\nconnect button that always fails is worse than no button \u2014 so the client is\ntold rather than left to discover it at the end.",
+        "operationId": "read_my_connections_api_v1_me_connections_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/connections/playtime": {
+      "get": {
+        "tags": [
+          "connections"
+        ],
+        "summary": "Your platform playtime for one game",
+        "description": "What the review composer offers as a prefill.\n\nSeparate from the badge on purpose. This is a suggestion into a field the\nauthor still owns and can overwrite; the badge is the platform's own figure\nshown as evidence. Conflating them would mean either overwriting what\nsomebody typed or claiming their typing was verified.",
+        "operationId": "read_playtime_suggestion_api_v1_me_connections_playtime_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Catalog id of the game",
+              "title": "Game Id"
+            },
+            "description": "Catalog id of the game"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaytimeSuggestion"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{user_id}/connections": {
+      "get": {
+        "tags": [
+          "connections"
+        ],
+        "summary": "The platforms shown on someone's profile",
+        "description": "Empty rather than 404 when there is nothing to show.\n\nGated twice: `require_visible_profile` is the same follow-graph check the rest\nof a profile goes through, and `is_visible` is the member's own switch for\nthis particular link. Both have to pass \u2014 being willing to be seen is not the\nsame as being willing to publish your play habits.",
+        "operationId": "read_profile_connections_api_v1_users__user_id__connections_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlatformShowcase"
+                  },
+                  "title": "Response Read Profile Connections Api V1 Users  User Id  Connections Get"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "That account is private and you are not approved"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connections/steam/start": {
+      "get": {
+        "tags": [
+          "connections"
+        ],
+        "summary": "Begin linking a Steam account",
+        "description": "Hand back the Steam URL to send the member to.\n\nReturned rather than redirected: the caller is the app's own client making an\nauthenticated XHR, and it needs to move its *top-level* window to this URL.\nAnswering with a 302 would only redirect the fetch.",
+        "operationId": "start_steam_link_api_v1_connections_steam_start_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionStart"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Steam linking is not configured here"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/connections/steam/sync": {
+      "post": {
+        "tags": [
+          "connections"
+        ],
+        "summary": "Re-sync your Steam library now",
+        "description": "Queue a refresh and hand back the link as it stands.\n\nDeliberately not the finished result: a full library takes seconds to walk,\nand holding the request open for it would make the button feel broken. The\nclient polls `GET /me/connections` for the outcome, which it needs to do\nanyway for the sync the callback schedules.",
+        "operationId": "sync_steam_library_api_v1_connections_steam_sync_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkedAccount"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "You have not linked a Steam account"
+          },
+          "429": {
+            "description": "Synced too recently"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/connections/steam/visibility": {
+      "patch": {
+        "tags": [
+          "connections"
+        ],
+        "summary": "Show or hide the link on your profile",
+        "description": "Hiding also withdraws the verified badge from this member's reviews.",
+        "operationId": "update_steam_visibility_api_v1_connections_steam_visibility_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VisibilityUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkedAccount"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "You have not linked a Steam account"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/connections/steam": {
+      "delete": {
+        "tags": [
+          "connections"
+        ],
+        "summary": "Unlink your Steam account",
+        "description": "Takes the synced library with it, by cascade.",
+        "operationId": "unlink_steam_api_v1_connections_steam_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "You have not linked a Steam account"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -3694,6 +3964,51 @@
         ],
         "title": "CommentUpdate",
         "description": "PATCH /comments/{id}. Text is the only thing a comment has to change."
+      },
+      "ConnectionProvider": {
+        "type": "string",
+        "enum": [
+          "STEAM"
+        ],
+        "title": "ConnectionProvider",
+        "description": "A gaming platform a member can link their account to.\n\nOnly Steam for now, and it is the only one with a sanctioned way in: Steam\nacts as an OpenID provider and publishes owned games and playtime through a\ndocumented Web API. PlayStation, Xbox and Nintendo have no public consumer\nAPI, so every client for them is reverse-engineered. The enum exists rather\nthan a bare boolean so adding one later is a value, not a reshaping."
+      },
+      "ConnectionStart": {
+        "properties": {
+          "authorize_url": {
+            "type": "string",
+            "title": "Authorize Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "authorize_url"
+        ],
+        "title": "ConnectionStart",
+        "description": "Where to send the browser to begin linking."
+      },
+      "ConnectionStatus": {
+        "properties": {
+          "steam_available": {
+            "type": "boolean",
+            "title": "Steam Available",
+            "description": "False when this deployment has no Steam Web API key, in which case the client should not offer the connect button at all."
+          },
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/LinkedAccount"
+            },
+            "type": "array",
+            "title": "Accounts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steam_available",
+          "accounts"
+        ],
+        "title": "ConnectionStatus",
+        "description": "`GET /me/connections` \u2014 every link the caller holds, plus availability."
       },
       "CursorPage_Annotated_Union_FeedReviewItem__FeedActivityItem__FeedRecommendedItem___FieldInfo_annotation_NoneType__required_True__discriminator__type____": {
         "properties": {
@@ -4374,6 +4689,14 @@
             "format": "date-time",
             "title": "Created At"
           },
+          "store_links": {
+            "items": {
+              "$ref": "#/components/schemas/StoreLink"
+            },
+            "type": "array",
+            "title": "Store Links",
+            "description": "Store listings for this game. Empty until the catalog import has reached the row; entries with a null url are not addressable and should not be rendered. Absent from GameSummary on purpose \u2014 no card shows it, and a browse page should not pay for it."
+          },
           "release_year": {
             "anyOf": [
               {
@@ -4566,6 +4889,117 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "LinkedAccount": {
+        "properties": {
+          "provider": {
+            "$ref": "#/components/schemas/ConnectionProvider"
+          },
+          "provider_account_id": {
+            "type": "string",
+            "title": "Provider Account Id",
+            "description": "SteamID64 for Steam"
+          },
+          "provider_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Username",
+            "description": "Persona name, mirrored"
+          },
+          "provider_avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Avatar Url"
+          },
+          "profile_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Url"
+          },
+          "is_visible": {
+            "type": "boolean",
+            "title": "Is Visible",
+            "description": "Whether the link shows on the member's profile"
+          },
+          "connected_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Connected At"
+          },
+          "last_synced_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced At",
+            "description": "Null until the first sync has run"
+          },
+          "last_sync_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlatformSyncStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "PROFILE_PRIVATE is split out from FAILED because it is the one outcome the member can fix themselves, by making their Steam game details public."
+          },
+          "sync_cooldown_minutes": {
+            "type": "integer",
+            "title": "Sync Cooldown Minutes",
+            "description": "Minutes until a manual re-sync is allowed; 0 when it is",
+            "default": 0
+          },
+          "total_games": {
+            "type": "integer",
+            "title": "Total Games",
+            "default": 0
+          },
+          "matched_games": {
+            "type": "integer",
+            "title": "Matched Games",
+            "description": "How many library entries resolved to a catalog game. The rest are tools, soundtracks and games the catalog has not imported.",
+            "default": 0
+          },
+          "total_playtime_minutes": {
+            "type": "integer",
+            "title": "Total Playtime Minutes",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "provider_account_id",
+          "is_visible",
+          "connected_at"
+        ],
+        "title": "LinkedAccount",
+        "description": "The link itself, as its owner sees it."
       },
       "LoginRequest": {
         "properties": {
@@ -4872,6 +5306,106 @@
         ],
         "title": "PlatformRef"
       },
+      "PlatformShowcase": {
+        "properties": {
+          "provider": {
+            "$ref": "#/components/schemas/ConnectionProvider"
+          },
+          "provider_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Username"
+          },
+          "profile_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Url"
+          },
+          "total_games": {
+            "type": "integer",
+            "title": "Total Games"
+          },
+          "total_playtime_minutes": {
+            "type": "integer",
+            "title": "Total Playtime Minutes"
+          },
+          "most_played": {
+            "items": {
+              "$ref": "#/components/schemas/ShowcaseGame"
+            },
+            "type": "array",
+            "title": "Most Played"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "total_games",
+          "total_playtime_minutes",
+          "most_played"
+        ],
+        "title": "PlatformShowcase",
+        "description": "A linked platform as it appears on somebody else's profile."
+      },
+      "PlatformSyncStatus": {
+        "type": "string",
+        "enum": [
+          "OK",
+          "PROFILE_PRIVATE",
+          "FAILED"
+        ],
+        "title": "PlatformSyncStatus",
+        "description": "The outcome of the last library sync, as the settings screen reports it.\n\n`PROFILE_PRIVATE` is split out from `FAILED` because it is not a failure the\napp can fix and it is by far the most common one: Steam answers a member\nwhose \"Game details\" are not public with an empty payload and a 200, which\nis indistinguishable from an empty library unless it is looked for. The\nmember has to change a setting on Steam, and can only be told that if the\ncase is carried this far."
+      },
+      "PlaytimeSuggestion": {
+        "properties": {
+          "game_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Game Id"
+          },
+          "playtime_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Playtime Minutes",
+            "description": "Null when no linked library has this game"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConnectionProvider"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "game_id"
+        ],
+        "title": "PlaytimeSuggestion",
+        "description": "`GET /me/connections/playtime` \u2014 a prefill for the review composer."
+      },
       "ProcessingStatus": {
         "type": "string",
         "enum": [
@@ -5167,6 +5701,17 @@
             "title": "Thumbnail Url",
             "description": "What the profile grid tiles with: the first media thumbnail, falling back to the game's cover art (SPEC \u00a76.2)."
           },
+          "verified_playtime": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerifiedPlaytime"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Playtime the author's linked platform published for this game, when the library entry was matched by store id. Distinct from `playtime_minutes`, which is what the author typed: this one is evidence and that one is a claim. Absent when the author has no linked account, has hidden it, or the game only matched by title."
+          },
           "media": {
             "items": {
               "$ref": "#/components/schemas/ReviewMediaItem"
@@ -5405,6 +5950,17 @@
             "title": "Thumbnail Url",
             "description": "What the profile grid tiles with: the first media thumbnail, falling back to the game's cover art (SPEC \u00a76.2)."
           },
+          "verified_playtime": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerifiedPlaytime"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Playtime the author's linked platform published for this game, when the library entry was matched by store id. Distinct from `playtime_minutes`, which is what the author typed: this one is evidence and that one is a claim. Absent when the author has no linked account, has hidden it, or the game only matched by title."
+          },
           "stars": {
             "type": "number",
             "title": "Stars",
@@ -5479,6 +6035,78 @@
         "type": "object",
         "title": "ReviewUpdate",
         "description": "PATCH /reviews/{id}, with the same semantics as `UserUpdate`.\n\nAn omitted key is left alone and an explicit null clears the column, which is\nhow a user deletes the text of a review without deleting the rating with it.\nThe game is deliberately absent: see `app.services.reviews.update_review`."
+      },
+      "ShowcaseGame": {
+        "properties": {
+          "game": {
+            "$ref": "#/components/schemas/GameSummary"
+          },
+          "playtime_minutes": {
+            "type": "integer",
+            "title": "Playtime Minutes"
+          },
+          "last_played_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Played At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "game",
+          "playtime_minutes"
+        ],
+        "title": "ShowcaseGame",
+        "description": "One game on a profile's platform showcase."
+      },
+      "StoreLink": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "Store key as IGDB publishes it, e.g. 'steam'"
+          },
+          "uid": {
+            "type": "string",
+            "title": "Uid",
+            "description": "The store's own id for the game, e.g. a Steam appid"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "The store's name. Falls back to the raw key rather than to nothing.",
+            "readOnly": true
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "The listing, or null for a source with no template \u2014 see the note above.\n\nThe digit check is not redundant with the importer's own validation. This\nvalue originates upstream and ends up in an href a reader clicks, so the\none place it becomes a URL is worth making the place that refuses to\nbuild a strange one.",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "uid",
+          "label",
+          "url"
+        ],
+        "title": "StoreLink",
+        "description": "Where a catalog entry can be bought or launched, from `game_external_ids`.\n\nThe ids arrive with the catalog import \u2014 IGDB publishes each game's store\nlistings \u2014 so this costs nothing to produce beyond addressing them.\n\n`url` is nullable and the client is expected to drop the nulls.\n`game_external_ids.source` is deliberately a free string rather than an enum,\nso that a store appearing upstream widens the mapping instead of failing an\nimport; the consequence is that a source can arrive before anyone here has\nwritten its URL template. A row we cannot address is a row we do not link,\nwhich is a better outcome than an import that refuses a game because we do\nnot recognise one of its listings."
       },
       "TrendingGame": {
         "properties": {
@@ -5963,6 +6591,50 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VerifiedPlaytime": {
+        "properties": {
+          "provider": {
+            "$ref": "#/components/schemas/ConnectionProvider"
+          },
+          "playtime_minutes": {
+            "type": "integer",
+            "title": "Playtime Minutes"
+          },
+          "last_played_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Played At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "playtime_minutes"
+        ],
+        "title": "VerifiedPlaytime",
+        "description": "Playtime the platform published, attached to a review at read time.\n\nDerived on every read rather than stored on the review. That is what keeps it\nhonest: it cannot drift from the library it came from, and it disappears the\nmoment the member unlinks or hides the connection, which a column copied at\nwrite time could not do."
+      },
+      "VisibilityUpdate": {
+        "properties": {
+          "is_visible": {
+            "type": "boolean",
+            "title": "Is Visible"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "is_visible"
+        ],
+        "title": "VisibilityUpdate"
       }
     },
     "securitySchemes": {

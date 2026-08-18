@@ -22,6 +22,7 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Avatar } from "@/components/avatar";
 import { FavoriteGames } from "@/components/favorite-games";
+import { PlatformShowcase } from "@/components/platform-showcase";
 import { FollowButton, RemoveFollowerButton } from "@/components/follow-button";
 import { GameCard } from "@/components/game-card";
 import { ReviewGrid } from "@/components/review-tile";
@@ -40,6 +41,7 @@ import { followListPath } from "@/lib/social";
 import type {
   BacklogLists,
   FollowState,
+  PlatformShowcase as PlatformShowcaseEntry,
   ProfileStats,
   ReviewPage,
   ReviewSummary,
@@ -153,6 +155,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [reviews, setReviews] = useState<ReviewSummary[] | null>(null);
   const [lists, setLists] = useState<BacklogLists | null>(null);
+  const [showcases, setShowcases] = useState<PlatformShowcaseEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   // Bumped when a follow action changes what this viewer is allowed to see, to
   // re-read the profile. Only a private account needs it: unfollowing one closes
@@ -235,6 +238,17 @@ export default function ProfilePage() {
       })
       .catch(() => {
         if (!cancelled) setLists(null);
+      });
+
+    // Same gate again. Returns an empty list rather than a 404 when nothing is
+    // linked or the owner has hidden it, so the failure path here is only ever a
+    // real error — and an absent showcase renders nothing either way.
+    authedRequest<PlatformShowcaseEntry[]>(`/users/${ownerId}/connections`)
+      .then((body) => {
+        if (!cancelled) setShowcases(body);
+      })
+      .catch(() => {
+        if (!cancelled) setShowcases([]);
       });
 
     return () => {
@@ -349,6 +363,8 @@ export default function ProfilePage() {
           />
 
           {profile.stats ? <Stats stats={profile.stats} /> : null}
+
+          <PlatformShowcase showcases={showcases} />
 
           {lists ? <BacklogSection lists={lists} isViewer={profile.is_viewer} /> : null}
 

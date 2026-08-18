@@ -12,7 +12,7 @@
  * that can afford the space — everywhere else the same artwork is a card in a
  * grid.
  */
-import { ImageOff } from "lucide-react";
+import { ArrowUpRight, ImageOff } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -25,9 +25,10 @@ import { Alert } from "@/components/ui/alert";
 import { buttonStyles } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StoreMark } from "@/components/ui/store-mark";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { releaseYearLabel } from "@/lib/catalog";
+import { linkableStores, releaseYearLabel, storeLinkLabel } from "@/lib/catalog";
 import type { GameDetail } from "@sidequestd/api-types";
 
 function Tags({ label, items }: { label: string; items: { id: string; name: string }[] }) {
@@ -46,6 +47,50 @@ function Tags({ label, items }: { label: string; items: { id: string; name: stri
         ))}
       </ul>
     </div>
+  );
+}
+
+/**
+ * Where to buy or launch the game, as one more entry in the line of facts.
+ *
+ * It belongs here rather than beside "Write a review" because a store listing is
+ * something *about* the game, not something the reader does inside Sidequestd —
+ * and the action row below is reserved for the two things that are.
+ *
+ * `link-quiet` rather than `link`: position already marks it as clickable, so the
+ * accent arrives as an underline on hover and never as text colour. The one
+ * chromatic step it does take is `text-fg-dim` against the line's `text-fg-faint`,
+ * which is enough to find it and not enough to make the line about it.
+ *
+ * The arrow is doing real work. Nothing else on this page leaves the app, and a
+ * reader who clicks a link in a metadata line has every reason to expect it to
+ * stay put.
+ */
+function StoreLinks({ game }: { game: GameDetail }) {
+  const stores = linkableStores(game.store_links);
+  if (stores.length === 0) return null;
+
+  return (
+    <>
+      {stores.map((store) => (
+        // The separator lives inside the nowrap span so a narrow viewport can
+        // break the line before " · Steam ↗" but never inside it.
+        <span key={store.source} className="whitespace-nowrap">
+          {" · "}
+          <a
+            href={store.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={storeLinkLabel(store, game.title)}
+            className="link-quiet inline-flex items-center gap-1 align-middle text-fg-dim transition-colors duration-150 hover:text-fg"
+          >
+            <StoreMark source={store.source} className="size-3.5" />
+            {store.label}
+            <ArrowUpRight aria-hidden strokeWidth={2} className="size-3" />
+          </a>
+        </span>
+      ))}
+    </>
   );
 }
 
@@ -97,7 +142,10 @@ export default function GameDetailPage() {
             <Skeleton className="aspect-3/4 w-full max-w-[240px] shrink-0" />
             <div className="flex-1 space-y-4">
               <Skeleton className="h-12 w-3/4" />
-              <Skeleton className="h-4 w-40" />
+              {/* Wide enough for "Released 2015 · via igdb · Steam ↗" rather
+                  than for the shortest form of that line, so a game that has a
+                  store link does not widen it on arrival. */}
+              <Skeleton className="h-4 w-64" />
               {/* The score band, held open so the summary below it does not jump
                   ~90px when the game arrives. Two columns because both are
                   usually present, and the IGDB one collapsing shifts nothing
@@ -150,6 +198,7 @@ export default function GameDetailPage() {
           <p className="type-eyebrow mt-4 text-fg-faint">
             Released {releaseYearLabel(game.release_year)}
             {game.external_source ? ` · via ${game.external_source}` : ""}
+            <StoreLinks game={game} />
           </p>
 
           {/* Above the summary: the summary is prose the eye skips, and how the

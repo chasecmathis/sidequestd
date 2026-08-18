@@ -18,6 +18,7 @@ from fastapi import APIRouter, BackgroundTasks, File, Form, Path, UploadFile, st
 
 from app.api.deps import CurrentUser, DbSession, OptionalUser
 from app.models.review import ReviewMedia
+from app.schemas.connections import VerifiedPlaytime
 from app.schemas.game import GameSummary
 from app.schemas.review import (
     ReviewCreate,
@@ -69,6 +70,11 @@ def summary_payload(entry: ReviewWithStats) -> ReviewSummary:
         viewer_has_liked=entry.stats.viewer_has_liked,
         media_count=len(media),
         thumbnail_url=thumbnail or review.game.cover_url,
+        verified_playtime=(
+            VerifiedPlaytime.model_validate(entry.verified_playtime)
+            if entry.verified_playtime is not None
+            else None
+        ),
     )
 
 

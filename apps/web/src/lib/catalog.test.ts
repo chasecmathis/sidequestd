@@ -5,13 +5,16 @@ import {
   formatGameRating,
   formatIgdbRating,
   igdbMeterFill,
+  linkableStores,
   orderFacetOptions,
   ratingCountLabel,
   releaseYearLabel,
   searchQuery,
+  storeLinkLabel,
   toggleFacet,
   visibleFacetOptions,
 } from "./catalog";
+import type { StoreLink } from "@sidequestd/api-types";
 
 /** The shape both facet helpers are generic over. */
 const facets = (...slugs: string[]) => slugs.map((slug) => ({ slug }));
@@ -196,5 +199,49 @@ describe("ratingCountLabel", () => {
     expect(ratingCountLabel(0)).toBeNull();
     expect(ratingCountLabel(null)).toBeNull();
     expect(ratingCountLabel(undefined)).toBeNull();
+  });
+});
+
+describe("linkableStores", () => {
+  const steam: StoreLink = {
+    source: "steam",
+    uid: "620",
+    label: "Steam",
+    url: "https://store.steampowered.com/app/620/",
+  };
+  // The API hands over ids it cannot address rather than dropping them, because
+  // `source` is a free string so a new store widens the catalog instead of
+  // failing an import.
+  const unaddressable: StoreLink = { source: "itch", uid: "12345", label: "itch", url: null };
+
+  it("keeps a store somebody can actually be sent to", () => {
+    expect(linkableStores([steam])).toEqual([
+      { source: "steam", label: "Steam", url: "https://store.steampowered.com/app/620/" },
+    ]);
+  });
+
+  it("drops a store with no address, so no link looks broken", () => {
+    expect(linkableStores([unaddressable])).toEqual([]);
+    expect(linkableStores([steam, unaddressable])).toHaveLength(1);
+  });
+
+  it("treats an absent field as no stores rather than throwing", () => {
+    // A summary shape or an older cached response has no `store_links` at all,
+    // and the metadata line it sits in must not take the page down with it.
+    expect(linkableStores(undefined)).toEqual([]);
+    expect(linkableStores(null)).toEqual([]);
+  });
+});
+
+describe("storeLinkLabel", () => {
+  it("names the game and warns that the link leaves the site", () => {
+    // The visible text is the single word "Steam", which on its own tells a
+    // screen-reader user neither which game it opens nor that it navigates away.
+    const label = storeLinkLabel(
+      { source: "steam", label: "Steam", url: "https://store.steampowered.com/app/620/" },
+      "Portal 2",
+    );
+
+    expect(label).toBe("View Portal 2 on Steam (opens in a new tab)");
   });
 });

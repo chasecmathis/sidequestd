@@ -10,6 +10,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.game import Game, Genre, game_genres
+from app.schemas.game import StoreLink
 from tests.conftest import SEED_GAME_COUNT
 
 BROWSE = "/api/v1/games"
@@ -268,6 +269,74 @@ async def test_unknown_game_is_a_404(client: AsyncClient) -> None:
     response = await client.get(f"{BROWSE}/{uuid.uuid4()}")
 
     assert response.status_code == 404
+
+
+# --- Store links -----------------------------------------------------------
+
+
+async def _detail(client: AsyncClient, title: str) -> dict[str, object]:
+    listed = (await client.get(BROWSE, params={"limit": 50})).json()["items"]
+    card = next(item for item in listed if item["title"] == title)
+    response = await client.get(f"{BROWSE}/{card['id']}")
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+async def test_detail_addresses_the_steam_listing(client: AsyncClient, catalog: list[Game]) -> None:
+    """The appid from the catalog import, turned into somewhere a reader can go."""
+    body = await _detail(client, "Portal 2")
+
+    assert body["store_links"] == [
+        {
+            "source": "steam",
+            "uid": "620",
+            "label": "Steam",
+            "url": "https://store.steampowered.com/app/620/",
+        }
+    ]
+
+
+async def test_a_game_sold_nowhere_we_know_of_reports_no_links(
+    client: AsyncClient, catalog: list[Game]
+) -> None:
+    """Three of the seed entries are Nintendo exclusives with no store id at all.
+
+    An empty list rather than an error or a missing key: "we have no listing for
+    this" is an ordinary state, not a failure, and the client renders it by
+    leaving the metadata line exactly as it was.
+    """
+    body = await _detail(client, "Super Mario Odyssey")
+
+    assert body["store_links"] == []
+
+
+async def test_a_card_does_not_carry_store_links(client: AsyncClient, catalog: list[Game]) -> None:
+    """The reason `store_ids` is loaded in `get_game` and not in `_with_related`.
+
+    Nothing in a browse grid renders a store link, and a regression that put the
+    field back on the summary would cost every 20-card page an extra query in
+    silence.
+    """
+    card = (await client.get(BROWSE, params={"limit": 1})).json()["items"][0]
+
+    assert "store_links" not in card
+
+
+def test_a_store_id_we_cannot_address_is_not_a_link() -> None:
+    """`source` is a free string so a new store widens the mapping rather than
+    failing an import — which means one can arrive before its URL template does.
+
+    The non-numeric case is the same guard from the other side: this value comes
+    from upstream and ends up in an href, so the one place it becomes a URL is
+    the place that refuses to build a strange one.
+    """
+    unknown_store = StoreLink(source="itch", uid="12345")
+    assert unknown_store.url is None
+    # Still named as usefully as we can manage, rather than dropped entirely.
+    assert unknown_store.label == "itch"
+
+    malformed = StoreLink(source="steam", uid="620; DROP TABLE games")
+    assert malformed.url is None
 
 
 async def test_a_non_uuid_id_does_not_shadow_the_literal_routes(client: AsyncClient) -> None:

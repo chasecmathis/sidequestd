@@ -9,6 +9,7 @@ import {
   Bell,
   Compass,
   Home,
+  Link2,
   LogOut,
   PenLine,
   Search,
@@ -25,6 +26,7 @@ import { buttonStyles } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Wordmark } from "@/components/ui/wordmark";
 import { useAuth } from "@/lib/auth";
+import { CONNECTIONS_PATH } from "@/lib/connections";
 import { cn } from "@/lib/cn";
 import { useDismissable } from "@/lib/use-dismissable";
 import { NOTIFICATIONS_PATH, badgeAriaLabel, badgeLabel } from "@/lib/notifications";
@@ -134,6 +136,7 @@ function UserMenu({ user, onSignOut }: { user: UserMe; onSignOut: () => void }) 
   const items: { href: string; label: string; icon: LucideIcon }[] = [
     { href: profilePath(user.username), label: "Your profile", icon: User },
     { href: "/settings/profile", label: "Settings", icon: Settings },
+    { href: CONNECTIONS_PATH, label: "Connections", icon: Link2 },
   ];
 
   return (

@@ -250,6 +250,51 @@ class MediaNotFoundError(ServiceError):
     detail = "That media item is not attached to this review."
 
 
+class SteamNotConfiguredError(ServiceError):
+    status_code = 503
+    detail = "Steam linking is not available on this deployment."
+
+
+class SteamVerificationError(ServiceError):
+    """The callback did not carry a genuine assertion from Steam.
+
+    One error for every way that can happen — a forged claimed id, a replayed
+    `return_to`, a signature Steam disowns — because the difference is only ever
+    interesting to somebody probing the endpoint.
+    """
+
+    status_code = 400
+    detail = "Steam could not confirm that sign-in. Please try linking again."
+
+
+class PlatformAccountNotLinkedError(ServiceError):
+    status_code = 404
+    detail = "You have not linked a Steam account."
+
+
+class PlatformAccountTakenError(ConflictError):
+    """SPEC §6.7 privacy aside, this is what makes the verified badge mean anything.
+
+    Points at the fix rather than just refusing: whoever holds the link can
+    remove it, and the same Steam account is then free to be linked again.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            "That Steam account is already linked to another Sidequestd profile.",
+            field="provider_account_id",
+        )
+
+
+class SyncTooSoonError(ServiceError):
+    status_code = 429
+
+    def __init__(self, minutes: int) -> None:
+        super().__init__(
+            f"Your library was synced recently. You can sync again in about {minutes} minute(s)."
+        )
+
+
 class IgdbNotConfiguredError(ServiceError):
     status_code = 503
     detail = (

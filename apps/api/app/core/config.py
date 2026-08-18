@@ -95,6 +95,31 @@ class Settings(BaseSettings):
     igdb_api_url: str = "https://api.igdb.com/v4"
     igdb_token_url: str = "https://id.twitch.tv/oauth2/token"  # noqa: S105 - an endpoint, not a secret
 
+    # --- Steam account linking ---------------------------------------------
+    # Absent by default, and the feature reports itself unavailable rather than
+    # blocking boot — the same shape as the IGDB credentials above. A deploy that
+    # never sets this simply has no Connections section.
+    steam_api_key: str | None = None
+    steam_api_url: str = "https://api.steampowered.com"
+    steam_openid_url: str = "https://steamcommunity.com/openid/login"
+
+    # Where *this API* is reachable from a browser. Steam requires the OpenID
+    # `realm` and `return_to` to be absolute and agree with each other, and it
+    # redirects the member's browser back to them, so neither can be derived from
+    # the inbound request: behind a proxy that would produce the internal address
+    # and the round trip would fail at the last step.
+    api_public_url: str = "http://localhost:8000"
+
+    # How long the signed state carried through the Steam redirect stays good.
+    # It stands in for the bearer token a browser coming back from an external
+    # site cannot send, so it is deliberately far shorter than a session.
+    steam_state_ttl_minutes: int = 10
+
+    # A member can re-sync by hand this often. Steam's library figures move when
+    # somebody stops playing, not second to second, and the button is there for
+    # "I just finished a session", not for polling.
+    steam_sync_cooldown_minutes: int = 60
+
     # --- Rate limits (SPEC §9: auth and search endpoints are rate limited) --
     rate_limit_enabled: bool = True
     rate_limit_auth: str = "10/minute"
@@ -156,6 +181,17 @@ class Settings(BaseSettings):
         if not self.web_app_url.startswith("https://") or _is_local_host(self.web_app_url):
             # It is the base of every password-reset link that gets emailed out.
             yield f"WEB_APP_URL must be the public HTTPS address of the web client; got {self.web_app_url!r}"  # noqa: E501
+
+        if self.steam_api_key and (
+            not self.api_public_url.startswith("https://") or _is_local_host(self.api_public_url)
+        ):
+            # Steam sends the member's browser here to finish the link, and
+            # refuses a realm that does not match. Only checked when the feature
+            # is switched on, so a deploy that does not use it is unaffected.
+            yield (
+                "API_PUBLIC_URL must be the public HTTPS address of this API for "
+                f"Steam linking to work; got {self.api_public_url!r}"
+            )
 
         if _is_local_host(self.smtp_host):
             yield "SMTP_HOST still points at the local Mailpit container, so no email would arrive"

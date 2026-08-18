@@ -39,8 +39,8 @@ from app.models.game import Game
 from app.models.review import MAX_MEDIA_PER_REVIEW, Comment, Like, Review, ReviewMedia
 from app.models.user import User
 from app.schemas.review import ReviewCreate, ReviewUpdate
+from app.services import connections, notifications, storage
 from app.services import media as media_service
-from app.services import notifications, storage
 from app.services import users as users_service
 from app.services.exceptions import (
     GameNotFoundError,
@@ -82,6 +82,11 @@ class ReviewWithStats:
 
     review: Review
     stats: InteractionStats
+    # The author's platform-attested playtime for this game, when they have a
+    # visible linked library that names it by store id. Resolved on every read
+    # rather than stored on the review — see `app.services.connections` — so it
+    # cannot drift from the library and vanishes the moment the link does.
+    verified_playtime: connections.VerifiedPlaytimeRecord | None = None
 
 
 # Author, game and media are all rendered by every caller, so they are loaded up
@@ -176,8 +181,17 @@ async def with_stats(
     written by `app.services.interactions` show up on all of them at once.
     """
     stats = await interaction_stats(db, [review.id for review in reviews], viewer_id)
+    # One query for the page, not one per row: the feed hydrates dozens of
+    # reviews at a time and this is exactly where a badge becomes an N+1.
+    verified = await connections.get_verified_playtime_for_reviews(
+        db, [(review.user_id, review.game_id) for review in reviews]
+    )
     return [
-        ReviewWithStats(review=review, stats=stats.get(review.id, NO_INTERACTIONS))
+        ReviewWithStats(
+            review=review,
+            stats=stats.get(review.id, NO_INTERACTIONS),
+            verified_playtime=verified.get((review.user_id, review.game_id)),
+        )
         for review in reviews
     ]
 

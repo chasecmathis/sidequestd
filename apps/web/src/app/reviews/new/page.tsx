@@ -15,6 +15,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { BadgeCheck } from "lucide-react";
 import { Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
 import { AppShell } from "@/components/app-shell";
@@ -26,6 +27,7 @@ import { ListSkeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { releaseYearLabel, searchQuery } from "@/lib/catalog";
+import { playtimeSuggestionValue } from "@/lib/connections";
 import {
   ACCEPTED_MEDIA,
   MAX_MEDIA_PER_REVIEW,
@@ -35,7 +37,13 @@ import {
   reviewPath,
   tally,
 } from "@/lib/reviews";
-import type { GamePage, GameSummary, ReviewCreate, ReviewDetail } from "@sidequestd/api-types";
+import type {
+  GamePage,
+  GameSummary,
+  PlaytimeSuggestion,
+  ReviewCreate,
+  ReviewDetail,
+} from "@sidequestd/api-types";
 
 const DEBOUNCE_MS = 250;
 
@@ -130,11 +138,38 @@ function NewReviewForm() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
+  const [suggestion, setSuggestion] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isLoading && !user) router.replace("/login");
   }, [isLoading, user, router]);
+
+  // Asked for once per game picked. Silently absent when nothing is linked or
+  // the game is not in that library, which is the common case — a composer that
+  // announced "no Steam playtime found" every time would be noise.
+  useEffect(() => {
+    if (!game) {
+      setSuggestion(null);
+      return;
+    }
+
+    let cancelled = false;
+    authedRequest<PlaytimeSuggestion>(`/me/connections/playtime?game_id=${game.id}`)
+      .then((body) => {
+        if (cancelled) return;
+        setSuggestion(
+          body.playtime_minutes ? playtimeSuggestionValue(body.playtime_minutes) : null,
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setSuggestion(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authedRequest, game?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A "write a review" link from Game Detail arrives with the game already chosen.
   useEffect(() => {
@@ -321,6 +356,24 @@ function NewReviewForm() {
           onChange={(event) => setPlaytime(event.target.value)}
           hint="Hours played. Optional."
         />
+
+        {/* Offered, never applied.
+
+            The field belongs to the author — they may be reviewing one
+            playthrough of a game they have replayed for years — so the platform
+            figure arrives as a button rather than as a prefilled value. Hidden
+            once it matches what is typed, so it stops being a control the moment
+            it has nothing left to do. */}
+        {suggestion !== null && suggestion !== playtime ? (
+          <button
+            type="button"
+            onClick={() => setPlaytime(suggestion)}
+            className="type-eyebrow -mt-2 inline-flex items-center gap-1.5 rounded-sm border border-line px-1.5 py-1 text-fg-dim transition-colors duration-150 hover:border-accent"
+          >
+            <BadgeCheck aria-hidden strokeWidth={1.75} className="size-3.5" />
+            Use {suggestion}h from Steam
+          </button>
+        ) : null}
 
         <div className="space-y-2">
           <span className="type-eyebrow block text-fg-dim">Photos and clips</span>

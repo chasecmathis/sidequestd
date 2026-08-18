@@ -37,6 +37,14 @@ export type GameSummary = Schemas["GameSummary"];
 export type GameDetail = Schemas["GameDetail"];
 export type GenreRef = Schemas["GenreRef"];
 export type PlatformRef = Schemas["PlatformRef"];
+/**
+ * Where a game can be bought or launched. Detail-only — no card renders one.
+ *
+ * `url` is nullable: the API knows store ids it has no address template for, and
+ * hands them over rather than dropping them. Filter those out before rendering
+ * (`linkableStores` in `lib/catalog`).
+ */
+export type StoreLink = Schemas["StoreLink"];
 export type GameSort = Schemas["GameSort"];
 export type TrendingWindow = Schemas["TrendingWindow"];
 export type TrendingGame = Schemas["TrendingGame"];
@@ -283,6 +291,51 @@ export type FollowResult = Schemas["FollowResult"];
 export type FollowRequest = Schemas["FollowRequest"];
 
 export type FollowRequestPage = CursorPage<FollowRequest>;
+
+// --- Linked platform accounts (SPEC §6.13) ---------------------------------
+
+/** Which gaming platform a link is to. Steam is the only one so far. */
+export type ConnectionProvider = Schemas["ConnectionProvider"];
+
+/**
+ * How the last library sync went. `PROFILE_PRIVATE` is deliberately not folded
+ * into `FAILED`: it is the one outcome the member can fix themselves, by making
+ * their Steam game details public, so the UI owes them a different message.
+ */
+export type PlatformSyncStatus = Schemas["PlatformSyncStatus"];
+
+/** A linked account as its owner sees it on the settings screen. */
+export type LinkedAccount = Schemas["LinkedAccount"];
+
+/**
+ * Every link the caller holds, plus whether the deployment can link at all —
+ * `steam_available` is false when the API has no Steam key, and the client
+ * should hide the button rather than offer one that always fails.
+ */
+export type ConnectionStatus = Schemas["ConnectionStatus"];
+
+/** Where to send the browser to begin linking. */
+export type ConnectionStart = Schemas["ConnectionStart"];
+
+export type VisibilityUpdate = Schemas["VisibilityUpdate"];
+
+/** A linked platform as it appears on somebody else's profile. */
+export type PlatformShowcase = Schemas["PlatformShowcase"];
+
+/** One game on that showcase. */
+export type ShowcaseGame = Schemas["ShowcaseGame"];
+
+/**
+ * Playtime the platform published for a review's game.
+ *
+ * Distinct from `Review.playtime_minutes`, which is what the author typed: this
+ * is evidence and that is a claim. Present only when the author's library
+ * matched the game by store id and their link is visible.
+ */
+export type VerifiedPlaytime = Schemas["VerifiedPlaytime"];
+
+/** The composer's prefill: the caller's own platform playtime for one game. */
+export type PlaytimeSuggestion = Schemas["PlaytimeSuggestion"];
 
 /** FastAPI's 422 body for request-validation failures. */
 export type ValidationError = Schemas["HTTPValidationError"];

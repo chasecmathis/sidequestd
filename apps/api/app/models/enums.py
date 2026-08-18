@@ -43,6 +43,48 @@ class BacklogStatus(enum.StrEnum):
     DROPPED = "DROPPED"
 
 
+class ConnectionProvider(enum.StrEnum):
+    """A gaming platform a member can link their account to.
+
+    Only Steam for now, and it is the only one with a sanctioned way in: Steam
+    acts as an OpenID provider and publishes owned games and playtime through a
+    documented Web API. PlayStation, Xbox and Nintendo have no public consumer
+    API, so every client for them is reverse-engineered. The enum exists rather
+    than a bare boolean so adding one later is a value, not a reshaping.
+    """
+
+    STEAM = "STEAM"
+
+
+class LibraryMatchSource(enum.StrEnum):
+    """How a synced library entry was resolved to a catalog game.
+
+    This is the honesty mechanism behind the verified playtime badge.
+    `EXTERNAL_ID` came from the store id IGDB publishes for the game and is
+    exact. `TITLE` is a trigram guess, kept only so a member's showcase is not
+    full of holes, and never allowed to back a verified claim.
+    """
+
+    EXTERNAL_ID = "EXTERNAL_ID"
+    TITLE = "TITLE"
+
+
+class PlatformSyncStatus(enum.StrEnum):
+    """The outcome of the last library sync, as the settings screen reports it.
+
+    `PROFILE_PRIVATE` is split out from `FAILED` because it is not a failure the
+    app can fix and it is by far the most common one: Steam answers a member
+    whose "Game details" are not public with an empty payload and a 200, which
+    is indistinguishable from an empty library unless it is looked for. The
+    member has to change a setting on Steam, and can only be told that if the
+    case is carried this far.
+    """
+
+    OK = "OK"
+    PROFILE_PRIVATE = "PROFILE_PRIVATE"
+    FAILED = "FAILED"
+
+
 class NotificationType(enum.StrEnum):
     NEW_FOLLOWER = "NEW_FOLLOWER"
     FOLLOW_REQUEST = "FOLLOW_REQUEST"

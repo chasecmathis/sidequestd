@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validat
 
 from app.models.enums import MediaType, ProcessingStatus
 from app.models.review import MAX_RATING, MIN_RATING, REVIEW_TEXT_MAX_LENGTH
+from app.schemas.connections import VerifiedPlaytime
 from app.schemas.game import GameSummary
 from app.schemas.user import UserPublic
 
@@ -84,6 +85,17 @@ class ReviewSummary(BaseModel):
     thumbnail_url: str | None = Field(
         description="What the profile grid tiles with: the first media thumbnail, "
         "falling back to the game's cover art (SPEC §6.2)."
+    )
+
+    verified_playtime: VerifiedPlaytime | None = Field(
+        default=None,
+        description=(
+            "Playtime the author's linked platform published for this game, when "
+            "the library entry was matched by store id. Distinct from "
+            "`playtime_minutes`, which is what the author typed: this one is "
+            "evidence and that one is a claim. Absent when the author has no "
+            "linked account, has hidden it, or the game only matched by title."
+        ),
     )
 
     @computed_field  # type: ignore[prop-decorator]
