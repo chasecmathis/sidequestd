@@ -16,7 +16,7 @@
 import { Sparkles } from "lucide-react";
 
 import { Eyebrow } from "@/components/ui/eyebrow";
-import { recommendationLabel } from "@/lib/feed";
+import { recommendationLabel } from "@sidequestd/core";
 import type { FeedRecommendedItem } from "@sidequestd/api-types";
 
 import { ReviewCard } from "./review-card";

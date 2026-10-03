@@ -33,11 +33,19 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { ProfileSkeleton } from "@/components/ui/skeleton";
 import { Stat } from "@/components/ui/stat";
-import { ApiError } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
-import { BACKLOG_ORDER, emptyListMessage, entriesOn, listName } from "@/lib/backlog";
-import { distributionHeights, formatCount, statTiles } from "@/lib/profile";
-import { followListPath } from "@/lib/social";
+import {
+  ApiError,
+  BACKLOG_ORDER,
+  distributionHeights,
+  emptyListMessage,
+  entriesOn,
+  followListPath,
+  formatCount,
+  listName,
+  statTiles,
+  useAuth,
+} from "@sidequestd/core";
+
 import type {
   BacklogLists,
   FollowState,

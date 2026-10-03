@@ -85,6 +85,21 @@ class PlatformSyncStatus(enum.StrEnum):
     FAILED = "FAILED"
 
 
+class DevicePlatform(enum.StrEnum):
+    """Which store's app a push token belongs to.
+
+    Not used to pick a delivery route — every token goes to the same Expo push
+    service, which knows from the token itself whether APNs or FCM is on the
+    other end. It is here because a member with a phone and a tablet cannot tell
+    two rows apart otherwise, and because "why did nothing arrive on Android"
+    is a question that cannot be answered without knowing which rows were
+    Android in the first place.
+    """
+
+    IOS = "IOS"
+    ANDROID = "ANDROID"
+
+
 class NotificationType(enum.StrEnum):
     NEW_FOLLOWER = "NEW_FOLLOWER"
     FOLLOW_REQUEST = "FOLLOW_REQUEST"

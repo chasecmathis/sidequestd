@@ -13,8 +13,7 @@
  * the amber fill and the half-star clip both meaningless; a path renders the
  * same everywhere and stays crisp at the 12px the profile grid uses.
  */
-import { MAX_RATING, MIN_RATING, formatStars, starFill } from "@/lib/reviews";
-
+import { formatStars, MAX_RATING, MIN_RATING, starFill } from "@sidequestd/core";
 const STARS = [0, 1, 2, 3, 4];
 const STOPS = Array.from({ length: MAX_RATING - MIN_RATING + 1 }, (_, index) => index + MIN_RATING);
 

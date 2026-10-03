@@ -6,6 +6,7 @@ from app.api.v1 import (
     auth,
     backlog,
     connections,
+    devices,
     feed,
     games,
     interactions,
@@ -18,6 +19,9 @@ from app.api.v1 import (
 
 api_router = APIRouter()
 api_router.include_router(auth.router)
+# Ahead of `users`, whose `/users/{username}` would otherwise be a candidate for
+# `/users/me/devices`. See the note in `app.api.v1.devices`.
+api_router.include_router(devices.router)
 api_router.include_router(users.router)
 api_router.include_router(games.router)
 api_router.include_router(search.router)

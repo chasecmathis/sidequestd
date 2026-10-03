@@ -27,6 +27,8 @@ htmlcov/
 
 # Expo / React Native
 .expo/
+ios/
+android/
 *.jks
 *.p8
 *.p12

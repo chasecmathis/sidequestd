@@ -22,6 +22,11 @@ os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-not-used-anywhere-else")
 os.environ.setdefault("MIN_PASSWORD_LENGTH", "10")
+# Push delivery is scheduled from a commit hook, so leaving it on would make
+# every producer's test — every like, follow and comment — reach for the network
+# on its way past. `tests/test_push.py` drives `app.services.push` directly, with
+# the HTTP client substituted, which is where that behaviour is actually pinned.
+os.environ.setdefault("PUSH_ENABLED", "false")
 
 import base64
 import struct

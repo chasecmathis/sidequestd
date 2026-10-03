@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@sidequestd/core";
 import { settle } from "@/test-support";
 import type { CommentItem, CommentThread, UserMe } from "@sidequestd/api-types";
 
@@ -13,7 +13,7 @@ const authedRequest = vi.fn();
 let currentUser: UserMe | null = null;
 let isLoading = false;
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@sidequestd/core/auth", () => ({
   useAuth: () => ({
     authedRequest,
     user: currentUser,

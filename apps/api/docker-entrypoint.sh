@@ -65,7 +65,7 @@ esac
 #
 # Worth knowing before raising it: slowapi keeps its rate-limit counters in
 # process memory, so N workers means each of them enforces the configured limit
-# separately. See DEPLOY.md.
+# separately. See .context/architecture/deployment.md §6.
 if [ -z "${WEB_CONCURRENCY:-}" ]; then
     cores="$(nproc 2>/dev/null || echo 1)"
     WEB_CONCURRENCY="$((2 * cores + 1))"

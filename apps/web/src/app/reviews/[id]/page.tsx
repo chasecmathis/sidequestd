@@ -28,12 +28,17 @@ import { Alert } from "@/components/ui/alert";
 import { buttonStyles } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { ReviewSkeleton } from "@/components/ui/skeleton";
-import { ApiError } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
-import { releaseYearLabel } from "@/lib/catalog";
-import { commentCountLabel } from "@/lib/interactions";
-import { profilePath } from "@/lib/profile";
-import { formatPlaytime, formatStars, isProcessing } from "@/lib/reviews";
+import {
+  ApiError,
+  commentCountLabel,
+  formatPlaytime,
+  formatStars,
+  isProcessing,
+  profilePath,
+  releaseYearLabel,
+  useAuth,
+} from "@sidequestd/core";
+
 import type { ReviewDetail, ReviewInteractions } from "@sidequestd/api-types";
 
 /** How long to wait before asking again whether the media has finished. */

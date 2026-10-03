@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { UserMe } from "@sidequestd/api-types";
 
-import { BacklogProvider } from "@/lib/backlog-store";
+import { BacklogProvider } from "@sidequestd/core";
 
 import { BacklogControl } from "./backlog-control";
 
@@ -12,7 +12,7 @@ const authedRequest = vi.fn();
 
 let currentUser: UserMe | null = null;
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@sidequestd/core/auth", () => ({
   useAuth: () => ({
     authedRequest,
     user: currentUser,

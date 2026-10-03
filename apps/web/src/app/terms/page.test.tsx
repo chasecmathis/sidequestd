@@ -7,8 +7,8 @@ import TermsPage from "./page";
 // real app. Stubbed rather than wrapped, matching how auth and notifications are
 // handled just below; `importActual` keeps the module's constants real so a
 // renamed export still breaks loudly.
-vi.mock("@/lib/theme", async (importActual) => ({
-  ...(await importActual<typeof import("@/lib/theme")>()),
+vi.mock("@sidequestd/core/theme", async (importActual) => ({
+  ...(await importActual<typeof import("@sidequestd/core/theme")>()),
   useTheme: () => ({ theme: "system" as const, resolved: "dark" as const, setTheme: vi.fn() }),
 }));
 
@@ -17,7 +17,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/terms",
 }));
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@sidequestd/core/auth", () => ({
   useAuth: () => ({
     authedRequest: vi.fn(),
     user: null,
@@ -27,7 +27,7 @@ vi.mock("@/lib/auth", () => ({
   }),
 }));
 
-vi.mock("@/lib/notifications-store", () => ({
+vi.mock("@sidequestd/core/notifications-store", () => ({
   useNotifications: () => ({ unreadCount: 0, markRead: vi.fn(), refresh: vi.fn() }),
 }));
 

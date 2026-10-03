@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@sidequestd/core";
 
 import RegisterPage from "./page";
 
@@ -13,8 +13,8 @@ const register = vi.fn();
 // real app. Stubbed rather than wrapped, matching how auth and notifications are
 // handled just below; `importActual` keeps the module's constants real so a
 // renamed export still breaks loudly.
-vi.mock("@/lib/theme", async (importActual) => ({
-  ...(await importActual<typeof import("@/lib/theme")>()),
+vi.mock("@sidequestd/core/theme", async (importActual) => ({
+  ...(await importActual<typeof import("@sidequestd/core/theme")>()),
   useTheme: () => ({ theme: "system" as const, resolved: "dark" as const, setTheme: vi.fn() }),
 }));
 
@@ -22,7 +22,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push, replace: vi.fn() }),
 }));
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@sidequestd/core/auth", () => ({
   useAuth: () => ({ register }),
 }));
 

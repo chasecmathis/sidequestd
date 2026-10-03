@@ -19,21 +19,27 @@ Two properties are load-bearing and easy to break:
   one comparison, and "you liked your own review" is the kind of thing that
   reappears the first time somebody adds a producer without reading the others.
 
-Delivery is in-app only (SPEC §6.12). There is no queue and no fan-out worker:
-the row *is* the delivery, and the client reads it from `GET /notifications`. Push
-is named as post-MVP, and it belongs behind this same function when it arrives.
+In-app, the row *is* the delivery: the client reads it from `GET /notifications`
+and there is no fan-out worker. Push arrived behind this same function, exactly
+where the previous version of this docstring said it belonged — `emit` records
+the intent, and the hook at the foot of this module hands it to
+`app.services.push` **after the caller's transaction commits**, which is the only
+point at which the notification is a fact rather than a maybe.
 """
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import uuid
 from collections.abc import Sequence
 from datetime import datetime
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import Session, selectinload
 
+from app.core.config import settings
 from app.models.backlog import BacklogItem
 from app.models.enums import BacklogStatus, FollowStatus, NotificationType
 from app.models.game import Game
@@ -41,12 +47,15 @@ from app.models.notification import Notification
 from app.models.review import Review
 from app.models.social import Follow
 from app.models.user import User
+from app.services import push as push_service
 from app.services.pagination import (
     DEFAULT_PAGE_SIZE,
     KeysetPage,
     KeysetSort,
     fetch_keyset_page,
 )
+
+logger = logging.getLogger(__name__)
 
 # The actor is a `UserPublic` shell, and the target is only ever rendered as the
 # sentence's object — "your review of *Hades*", "your comment" — so the game
@@ -96,15 +105,21 @@ async def emit(
     if recipient_id == actor_id:
         return
 
-    db.add(
-        Notification(
-            recipient_id=recipient_id,
-            actor_id=actor_id,
-            type=type,
-            review_id=review_id,
-            comment_id=comment_id,
-        )
+    notification = Notification(
+        # Assigned here rather than left to the column default, which only runs
+        # at flush. The push hook needs a handle on this row *now* — it is
+        # scheduled from the commit, by which point the object may be expired,
+        # and flushing here to learn the id would put a round trip inside a
+        # function whose whole contract is that it only adds to the session.
+        id=uuid.uuid4(),
+        recipient_id=recipient_id,
+        actor_id=actor_id,
+        type=type,
+        review_id=review_id,
+        comment_id=comment_id,
     )
+    db.add(notification)
+    _queue_push(db, notification.id)
 
 
 # --- Reading (SPEC §6.12) ---------------------------------------------------
@@ -212,3 +227,72 @@ async def backlog_reviewers_of(
         )
     )
     return list(rows)
+
+
+# --- Push, after the commit (SPEC §6.12) ------------------------------------
+#
+# `emit` writes and does not commit, which is the property the module docstring
+# opens with — so it also cannot *send*. A push posted from inside the producer's
+# transaction is a notification on somebody's lock screen about a like that then
+# rolled back, and unlike a database row a push cannot be taken back.
+#
+# So `emit` records an intention on the session and this pair of listeners acts
+# on it: dispatch when that session commits, discard when it rolls back. It is
+# the SQLAlchemy answer to the problem and it means no producer moved — a like,
+# a follow and a comment still know nothing about notifications beyond the one
+# function they call.
+#
+# What this is *not* is a durable outbox. A process that dies between the commit
+# and the send loses that push and nothing else, which is a trade the module
+# docstring of `app.services.push` argues in full: the notification is already
+# recorded, the inbox already shows it, and the badge poll already corrects
+# itself. Delivery is a nudge toward state that is true either way.
+
+_PENDING_KEY = "pending_push_notification_ids"
+
+# asyncio holds only a weak reference to a bare task, so a fire-and-forget one
+# can be garbage collected mid-flight. Holding them here until they finish is
+# the documented way round it.
+_IN_FLIGHT: set[asyncio.Task[None]] = set()
+
+
+def _queue_push(db: AsyncSession, notification_id: uuid.UUID) -> None:
+    """Note that this notification should be pushed if the transaction lands."""
+    db.info.setdefault(_PENDING_KEY, []).append(notification_id)
+
+
+@sa.event.listens_for(Session, "after_commit")
+def _dispatch_pending_pushes(session: Session) -> None:
+    """Hand everything this transaction emitted to the push service.
+
+    Listens on the *sync* `Session` because that is the object SQLAlchemy's ORM
+    events fire on; `AsyncSession.info` is a proxy to this one's, so what `emit`
+    put there is what is drained here.
+
+    The handler is synchronous and the send is not, so the work is scheduled on
+    the running loop rather than awaited — the greenlet this runs in belongs to
+    that loop, so it is there to be found. When it is not (a synchronous script,
+    a migration, a test harness driving a sync session) the pushes are dropped
+    with a line in the log rather than raising, because a commit must not fail
+    over a notification that has already been written.
+    """
+    pending: list[uuid.UUID] = session.info.pop(_PENDING_KEY, [])
+    if not pending or not settings.push_enabled:
+        return
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        logger.debug("No running loop; %d push(es) not dispatched", len(pending))
+        return
+
+    task = loop.create_task(push_service.deliver(pending))
+    _IN_FLIGHT.add(task)
+    task.add_done_callback(_IN_FLIGHT.discard)
+
+
+@sa.event.listens_for(Session, "after_rollback")
+@sa.event.listens_for(Session, "after_soft_rollback")
+def _drop_pending_pushes(session: Session, *_: object) -> None:
+    """The action did not happen, so neither did the notification about it."""
+    session.info.pop(_PENDING_KEY, None)

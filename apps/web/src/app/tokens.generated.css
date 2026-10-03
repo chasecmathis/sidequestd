@@ -1,0 +1,107 @@
+/*
+ * GENERATED FILE — DO NOT EDIT.
+ *
+ * Written by `npm run gen:tokens` from packages/design-tokens.
+ * Edit the values in packages/design-tokens/src/, then re-run it.
+ *
+ * The design rationale for every value below lives in that package's
+ * `palette.ts` and `shape.ts`, where the native client reads it too.
+ */
+
+/* Dark is the default and carries the bare token names, which does two things
+   at once: it emits `--color-canvas` onto `:root`, and it makes `bg-canvas`
+   compile to `var(--color-canvas)` rather than to the literal. The light block
+   at the bottom then reassigns those same names, and every utility follows at
+   once — which is why no component in either client ever names a mode, and why
+   there is no `dark:` variant anywhere in this codebase. */
+@theme {
+  --color-canvas: #0a090d;
+  --color-surface: #131218;
+  --color-surface-2: #1c1b24;
+  --color-line: #282634;
+  --color-line-strong: #3c3a4d;
+  --color-fg: #f1eff5;
+  --color-fg-dim: #a3a0ae;
+  --color-fg-faint: #6c6979;
+  --color-accent: #c08cff;
+  --color-accent-dim: #a96ff5;
+  --color-accent-ink: #12091c;
+  --color-accent-wash: rgba(192, 140, 255, 0.12);
+  --color-bloom: rgba(192, 140, 255, 0.08);
+  --color-star: #f5b942;
+  --color-danger: #ff6b5a;
+  --color-success: #6fd98f;
+
+  /* Fixed in both modes: type and chrome laid over user media, where what sits
+     behind is an arbitrary photograph rather than one of our surfaces. */
+  --color-scrim: rgba(0, 0, 0, 0.72);
+  --color-on-scrim: #ffffff;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --font-display: var(--font-instrument-serif), ui-serif, Georgia, serif;
+  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+:root {
+  color-scheme: dark;
+
+  /* Read once each, by one rule in globals.css — so neither needs to be a
+     `@theme` token with a utility generated for it. */
+  --grain: 0.035;
+  --shadow-pop: 0 24px 48px -12px rgba(0, 0, 0, 0.7);
+  --shadow-panel: 0 20px 40px -16px rgba(0, 0, 0, 0.55);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --color-canvas: #f7f5fa;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1eef6;
+  --color-line: #e1ddea;
+  --color-line-strong: #c8c3d6;
+  --color-fg: #191622;
+  --color-fg-dim: #4e4a5b;
+  --color-fg-faint: #7a7688;
+  --color-accent: #6b3fc4;
+  --color-accent-dim: #5a31ab;
+  --color-accent-ink: #ffffff;
+  --color-accent-wash: rgba(107, 63, 196, 0.1);
+  --color-bloom: rgba(107, 63, 196, 0.07);
+  --color-star: #8a5a05;
+  --color-danger: #c2352a;
+  --color-success: #1c7a46;
+
+  --shadow-pop: 0 24px 48px -12px rgba(42, 36, 56, 0.18);
+  --shadow-panel: 0 20px 40px -16px rgba(42, 36, 56, 0.12);
+
+  --grain: 0.022;
+}
+
+/* A patch of dark, sitting on artwork.
+ *
+ * The scrim tokens cover a flat fill and the type on it. This covers the harder
+ * case: a *subtree* over media, containing components that colour themselves
+ * from the palette and have no idea they are on a photograph. Redeclaring the
+ * inherited custom properties is the whole mechanism — anything inside picks
+ * them up without being passed a prop or told which mode it is in.
+ *
+ * The values are the dark theme's, repeated deliberately, and must not follow
+ * it if it changes. See `overMedia` in packages/design-tokens/src/palette.ts
+ * for the failure this exists to fix. */
+@utility over-media {
+  --color-fg: #f1eff5;
+  --color-fg-dim: #a3a0ae;
+  --color-star: #f5b942;
+  --color-line-strong: #3c3a4d;
+
+  color: var(--color-fg);
+}

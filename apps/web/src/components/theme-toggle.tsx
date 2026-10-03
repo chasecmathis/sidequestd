@@ -18,7 +18,7 @@ import { motion } from "motion/react";
 import { useCallback, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
-import { useTheme, type ThemeChoice } from "@/lib/theme";
+import { useTheme, type ThemeChoice } from "@sidequestd/core";
 import { useDismissable } from "@/lib/use-dismissable";
 
 const OPTIONS: { value: ThemeChoice; label: string; icon: LucideIcon }[] = [

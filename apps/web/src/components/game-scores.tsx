@@ -26,12 +26,12 @@
 import { StarRating } from "@/components/star-rating";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import {
-  IGDB_MAX_RATING,
   formatGameRating,
   formatIgdbRating,
+  IGDB_MAX_RATING,
   igdbMeterFill,
   ratingCountLabel,
-} from "@/lib/catalog";
+} from "@sidequestd/core";
 import type { GameSummary } from "@sidequestd/api-types";
 
 /**

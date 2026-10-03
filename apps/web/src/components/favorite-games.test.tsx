@@ -8,7 +8,7 @@ import { FavoriteGames } from "./favorite-games";
 
 const authedRequest = vi.fn();
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@sidequestd/core/auth", () => ({
   useAuth: () => ({ authedRequest, user: null, isLoading: false, logout: vi.fn() }),
 }));
 

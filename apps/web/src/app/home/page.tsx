@@ -33,7 +33,6 @@ import { Eyebrow } from "@/components/ui/eyebrow";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FeedSkeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/ui/page-header";
-import { useAuth } from "@/lib/auth";
 import {
   FEED_PREFETCH_MARGIN,
   feedItemKey,
@@ -41,8 +40,10 @@ import {
   isActivityItem,
   isRecommendedItem,
   isReviewItem,
-} from "@/lib/feed";
-import { profilePath } from "@/lib/profile";
+  profilePath,
+  useAuth,
+} from "@sidequestd/core";
+
 import type { FeedItem, FeedPage, FeedSuggestions } from "@sidequestd/api-types";
 
 /**

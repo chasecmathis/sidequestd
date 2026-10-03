@@ -8,9 +8,11 @@ from app.db.base import Base
 from app.models.auth import PasswordResetToken, RefreshToken
 from app.models.backlog import BacklogItem
 from app.models.connections import PlatformAccount, PlatformLibraryItem
+from app.models.device import DeviceToken
 from app.models.enums import (
     BacklogStatus,
     ConnectionProvider,
+    DevicePlatform,
     FollowStatus,
     LibraryMatchSource,
     MediaType,
@@ -38,6 +40,8 @@ __all__ = [
     "Base",
     "Comment",
     "ConnectionProvider",
+    "DevicePlatform",
+    "DeviceToken",
     "FavoriteGame",
     "Follow",
     "FollowStatus",

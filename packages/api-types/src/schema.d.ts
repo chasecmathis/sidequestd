@@ -129,6 +129,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register this device for push
+         * @description Put a push token on file for the caller (SPEC §6.12).
+         *
+         *     Idempotent, and idempotent in the strong sense: sending a token that is
+         *     already registered to somebody *else* moves it to the caller rather than
+         *     failing. That is not a convenience — a phone that changes hands would
+         *     otherwise keep receiving the previous member's notifications on its lock
+         *     screen, and the previous member is in no position to tell us to stop.
+         *
+         *     Always a 200. There is nothing a client could do about a refusal here except
+         *     lose its notifications, and the response says whether this deployment can
+         *     deliver anything at all so a client can be honest about what it promised.
+         */
+        post: operations["register_device_api_v1_users_me_devices_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/devices/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Stop pushing to this device
+         * @description What signing out sends, before the session goes.
+         *
+         *     A 200 whether or not there was a row, for the same reason unliking something
+         *     you never liked is a success: the caller wanted this device not to be
+         *     registered, and it is not. A 404 here would also confirm to anyone guessing
+         *     tokens which of them exist.
+         *
+         *     The token is a path segment and contains brackets — `ExponentPushToken[…]` —
+         *     so a client has to percent-encode it. That is the only sharp edge in this
+         *     module and it is the client's to handle.
+         */
+        delete: operations["forget_device_api_v1_users_me_devices__token__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me": {
         parameters: {
             query?: never;
@@ -1160,7 +1219,13 @@ export interface paths {
          *
          *     Returned rather than redirected: the caller is the app's own client making an
          *     authenticated XHR, and it needs to move its *top-level* window to this URL.
-         *     Answering with a 302 would only redirect the fetch.
+         *     Answering with a 302 would only redirect the fetch. The phone does the same
+         *     thing with `openAuthSessionAsync`, which is the platform's own window for
+         *     exactly this — a browser the app can open and be handed the result of.
+         *
+         *     Defaulting to `web` rather than requiring the parameter keeps the web
+         *     client's request the one it has always sent, and means a client that has not
+         *     heard of this cannot accidentally aim the callback at an app.
          */
         get: operations["start_steam_link_api_v1_connections_steam_start_get"];
         put?: never;
@@ -1603,6 +1668,60 @@ export interface components {
              * @description Pass as ?cursor= for the next page; null when exhausted.
              */
             next_cursor?: string | null;
+        };
+        /**
+         * DevicePlatform
+         * @description Which store's app a push token belongs to.
+         *
+         *     Not used to pick a delivery route — every token goes to the same Expo push
+         *     service, which knows from the token itself whether APNs or FCM is on the
+         *     other end. It is here because a member with a phone and a tablet cannot tell
+         *     two rows apart otherwise, and because "why did nothing arrive on Android"
+         *     is a question that cannot be answered without knowing which rows were
+         *     Android in the first place.
+         * @enum {string}
+         */
+        DevicePlatform: "IOS" | "ANDROID";
+        /**
+         * DeviceRegistered
+         * @description What registration answers with.
+         *
+         *     A body rather than a 204 for one reason: `push_enabled` tells the client
+         *     whether this deployment can actually deliver anything, which is the
+         *     difference between "we will notify you" and "we wrote your address down".
+         *     A client that knows the answer can keep polling honestly instead of
+         *     promising a badge that will never move on its own.
+         */
+        DeviceRegistered: {
+            /**
+             * Registered
+             * @description The token is on file for the caller
+             */
+            registered: boolean;
+            /**
+             * Push Enabled
+             * @description Whether this deployment sends push at all
+             */
+            push_enabled: boolean;
+        };
+        /**
+         * DeviceRegistration
+         * @description POST /users/me/devices.
+         *
+         *     Idempotent by design: the client registers on every cold start rather than
+         *     tracking whether it has registered before, because a token can be reissued
+         *     by the OS at any time and a client that only registered once would go quiet
+         *     without noticing.
+         */
+        DeviceRegistration: {
+            /**
+             * Token
+             * @description An Expo push token — `ExponentPushToken[…]`
+             * @example ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]
+             */
+            token: string;
+            /** @description Which store's build this token came from */
+            platform: components["schemas"]["DevicePlatform"];
         };
         /**
          * DiscoverResponse
@@ -3067,6 +3186,71 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_device_api_v1_users_me_devices_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeviceRegistration"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceRegistered"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    forget_device_api_v1_users_me_devices__token__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The token to forget */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceRegistered"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -5204,7 +5388,10 @@ export interface operations {
     };
     start_steam_link_api_v1_connections_steam_start_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Which client is asking, so the callback knows where to send them back */
+                client?: "web" | "native";
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -5218,6 +5405,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConnectionStart"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Steam linking is not configured here */

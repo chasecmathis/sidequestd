@@ -25,9 +25,8 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { ListSkeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/lib/auth";
-import { profilePath } from "@/lib/profile";
-import { REQUESTS_PAGE_SIZE, handle } from "@/lib/social";
+import { handle, profilePath, REQUESTS_PAGE_SIZE, useAuth } from "@sidequestd/core";
+
 import type { FollowRequest, FollowRequestPage } from "@sidequestd/api-types";
 
 function Row({

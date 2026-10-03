@@ -6,7 +6,7 @@ import type { NextConfig } from "next";
 // the browser. next/image refuses any host that is not allow-listed below, and
 // the list is baked into the build, so this has to be known at build time and
 // cannot be a runtime environment variable. Deploy-specific, hence a build arg
-// rather than a literal: see apps/web/Dockerfile and DEPLOY.md §7.
+// rather than a literal: see apps/web/Dockerfile and .context/architecture/deployment.md §7.
 function mediaRemotePatterns(rawUrl: string | undefined) {
   if (!rawUrl) return [];
   const { protocol, hostname, port, pathname } = new URL(rawUrl);

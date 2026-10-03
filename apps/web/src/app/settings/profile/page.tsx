@@ -21,9 +21,8 @@ import { inputStyles } from "@/components/ui/field";
 import { ProfileSkeleton } from "@/components/ui/skeleton";
 import { Avatar } from "@/components/avatar";
 import { Field, FormError, FormSuccess, SubmitButton } from "@/components/form";
-import { ApiError } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
-import { profilePath } from "@/lib/profile";
+import { ApiError, profilePath, useAuth } from "@sidequestd/core";
+
 import type { UserMe, UserUpdate } from "@sidequestd/api-types";
 
 const BIO_MAX_LENGTH = 300;

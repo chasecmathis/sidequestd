@@ -1,17 +1,21 @@
 import type { Metadata, Viewport } from "next";
 import { Figtree, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 
-import { MotionProvider } from "@/components/motion-provider";
-import { AuthProvider } from "@/lib/auth";
-import { BacklogProvider } from "@/lib/backlog-store";
-import { NotificationsProvider } from "@/lib/notifications-store";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
-import { ThemeProvider } from "@/lib/theme";
-// From `theme-keys` rather than from `theme` itself, and that import path is
-// load-bearing: this file is a server component, and `theme.tsx` is a client
-// module whose exports arrive here as references rather than values. See
-// theme-keys.ts.
-import { DARK_QUERY, THEME_STORAGE_KEY } from "@/lib/theme-keys";
+// From the `theme-keys` entry point rather than from the package root, and that
+// import path is load-bearing: this file is a server component, while `theme.tsx`
+// — which the root barrel re-exports these two through — is a client module whose
+// exports would arrive here as references rather than values. The constants come
+// through as `undefined`, with no error and no build warning, and the pre-paint
+// script below quietly compiles to `localStorage.getItem(undefined)`.
+//
+// The symptom is worth writing down, because nothing about it points here: the
+// page resolves to light for everyone, on every first paint, whatever their
+// device or their stored preference says — and then corrects itself the instant
+// React hydrates, so it only ever looks like a flash. See theme-keys.ts.
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@sidequestd/core";
+import { DARK_QUERY, THEME_STORAGE_KEY } from "@sidequestd/core/theme-keys";
+
+import { AppProviders } from "@/lib/providers";
 
 import "./globals.css";
 
@@ -133,30 +137,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body>
-        {/* Outermost, and outside `AuthProvider` on purpose: the theme belongs to
-            the device rather than to an account, has nothing to fetch, and has
-            to work on the signed-out landing and auth screens — which never
-            render an `AppShell` and, before this, never rendered a provider
-            either. */}
-        <ThemeProvider>
-          {/* Also outside the data providers: it configures animation, which is a
-              property of the whole tree and has nothing to fetch.
-              `reducedMotion="user"` is what lets every component below animate
-              unconditionally — the preference is honoured once, here, rather
-              than in each of them. */}
-          <MotionProvider>
-            <AuthProvider>
-              {/* Inside the auth provider: the backlog is one account's, and it
-                  has nothing to fetch until there is a session to fetch it for.
-                  The unread badge is the same, and it is out here rather than in
-                  the app shell because it has to survive navigation between
-                  tabs. */}
-              <BacklogProvider>
-                <NotificationsProvider>{children}</NotificationsProvider>
-              </BacklogProvider>
-            </AuthProvider>
-          </MotionProvider>
-        </ThemeProvider>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

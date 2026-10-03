@@ -26,9 +26,14 @@ import { buttonStyles } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StoreMark } from "@/components/ui/store-mark";
-import { ApiError } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
-import { linkableStores, releaseYearLabel, storeLinkLabel } from "@/lib/catalog";
+import {
+  ApiError,
+  linkableStores,
+  releaseYearLabel,
+  storeLinkLabel,
+  useAuth,
+} from "@sidequestd/core";
+
 import type { GameDetail } from "@sidequestd/api-types";
 
 function Tags({ label, items }: { label: string; items: { id: string; name: string }[] }) {

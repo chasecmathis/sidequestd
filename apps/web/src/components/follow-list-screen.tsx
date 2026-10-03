@@ -41,17 +41,20 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ListSkeleton } from "@/components/ui/skeleton";
-import { ApiError } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
-import { cn } from "@/lib/cn";
-import { formatCount, profilePath } from "@/lib/profile";
 import {
+  ApiError,
   emptyFollowMessage,
   followListLabel,
   followListPath,
   followListQuery,
+  formatCount,
+  profilePath,
+  useAuth,
   type FollowDirection,
-} from "@/lib/social";
+} from "@sidequestd/core";
+
+import { cn } from "@/lib/cn";
+
 import type { UserPage, UserProfile, UserPublic } from "@sidequestd/api-types";
 
 /**

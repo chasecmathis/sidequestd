@@ -17,6 +17,7 @@
     "api:install": "cd apps/api && uv sync --all-extras",
     "api:migrate": "cd apps/api && uv run alembic upgrade head",
     "api:dev": "cd apps/api && uv run uvicorn app.main:app --reload --port 8000",
+    "api:lan": "cd apps/api && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
     "api:seed": "cd apps/api && uv run python -m app.cli.import_games",
     "api:trending": "cd apps/api && uv run python -m app.cli.trending",
     "api:media": "cd apps/api && uv run python -m app.cli.process_media",
@@ -28,10 +29,19 @@
     "web:lint": "npm run lint --workspace @sidequestd/web",
     "web:test": "npm run test --workspace @sidequestd/web",
     "mobile:dev": "cd apps/mobile && npm run start",
+    "mobile:lint": "cd apps/mobile && npm run lint",
+    "mobile:typecheck": "cd apps/mobile && npm run typecheck",
     "gen:types": "cd apps/api && uv run python -m app.cli.export_openapi ../../packages/api-types/openapi.json && cd ../../packages/api-types && npm run generate",
-    "lint": "npm run api:lint && npm run web:lint",
-    "test": "npm run api:test && npm run web:test",
-    "format": "npm run api:format && npm run format --workspace @sidequestd/web"
+    "gen:tokens": "npm run generate --workspace @sidequestd/design-tokens",
+    "tokens:check": "npm run check --workspace @sidequestd/design-tokens",
+    "gen:brand": "npm run generate:brand --workspace @sidequestd/design-tokens",
+    "brand:check": "npm run check:brand --workspace @sidequestd/design-tokens",
+    "tokens:test": "npm run test --workspace @sidequestd/design-tokens",
+    "lint": "npm run tokens:check && npm run brand:check && npm run api:lint && npm run web:lint",
+    "test": "npm run tokens:test && npm run core:test && npm run api:test && npm run web:test",
+    "format": "npm run api:format && npm run format --workspace @sidequestd/web",
+    "core:test": "npm run test --workspace @sidequestd/core",
+    "core:typecheck": "npm run typecheck --workspace @sidequestd/core"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5"

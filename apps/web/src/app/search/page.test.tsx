@@ -12,8 +12,8 @@ const authedRequest = vi.fn();
 // real app. Stubbed rather than wrapped, matching how auth and notifications are
 // handled just below; `importActual` keeps the module's constants real so a
 // renamed export still breaks loudly.
-vi.mock("@/lib/theme", async (importActual) => ({
-  ...(await importActual<typeof import("@/lib/theme")>()),
+vi.mock("@sidequestd/core/theme", async (importActual) => ({
+  ...(await importActual<typeof import("@sidequestd/core/theme")>()),
   useTheme: () => ({ theme: "system" as const, resolved: "dark" as const, setTheme: vi.fn() }),
 }));
 
@@ -22,14 +22,14 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/search",
 }));
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@sidequestd/core/auth", () => ({
   useAuth: () => ({ authedRequest, user: null, logout: vi.fn() }),
 }));
 
 // The app shell carries an unread badge (SPEC §6.12). Stubbed so this file's
 // `authedRequest` mock is never asked for a count it has no answer for, and so
 // these tests do not depend on a provider none of them are about.
-vi.mock("@/lib/notifications-store", () => ({
+vi.mock("@sidequestd/core/notifications-store", () => ({
   useNotifications: () => ({ unreadCount: 0, markRead: vi.fn(), refresh: vi.fn() }),
 }));
 
@@ -37,7 +37,7 @@ vi.mock("@/lib/notifications-store", () => ({
 // backlog from a provider this page's tests do not mount. Stubbed rather than
 // wrapped: what the control does has its own tests, and a real store here would
 // answer `/users/me/lists` out of the search mock.
-vi.mock("@/lib/backlog-store", () => ({
+vi.mock("@sidequestd/core/backlog-store", () => ({
   useBacklog: () => ({
     statuses: new Map(),
     ensureLoaded: vi.fn(),

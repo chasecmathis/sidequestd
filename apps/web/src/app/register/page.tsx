@@ -6,8 +6,7 @@ import { useState, type FormEvent } from "react";
 
 import { AuthShell } from "@/components/auth-shell";
 import { Field, FormError, SubmitButton } from "@/components/form";
-import { ApiError } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { ApiError, useAuth } from "@sidequestd/core";
 
 export default function RegisterPage() {
   const router = useRouter();

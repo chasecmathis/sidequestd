@@ -13,7 +13,7 @@
 # above breaks, with "config file not found at specified path".
 #
 # Anything secret belongs in `fly secrets set`, never here — this file is
-# committed. See DEPLOY.md §7.
+# committed. See .context/architecture/deployment.md §7.
 
 app = "sidequestd-api"
 primary_region = "iad"
@@ -52,7 +52,7 @@ primary_region = "iad"
   # the refresh cookie is same-site and `lax` is enough. It was "none" while the
   # apps were on .fly.dev, which is on the Public Suffix List and therefore made
   # them different sites. `lax` is the stricter of the two — keep it unless a
-  # client moves off this domain. DEPLOY.md §4.
+  # client moves off this domain. .context/architecture/deployment.md §4.
   REFRESH_COOKIE_SAMESITE = "lax"
 
   # Both hostnames the web client is served from. The browser sends the origin

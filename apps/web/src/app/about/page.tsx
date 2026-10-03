@@ -1,6 +1,12 @@
 /**
  * What Sidequestd is, for someone who arrived without being told.
  *
+ * The sentences are in `@sidequestd/core`'s `about.ts` — shared with the phone
+ * for a weaker reason than the policy documents are, and that module says which.
+ * The arrangement is this file's own: a numbered editorial band against a wide
+ * measure, and the two-scores illustration as a two-column card. The phone
+ * stacks both, from the same words.
+ *
  * A server component — no `"use client"` — which is what lets it export
  * `metadata`. `AppShell` below it is a client component, and rendering one from
  * a server component is fine; it just means the shell's auth-dependent bits
@@ -14,92 +20,54 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import {
+  ABOUT_CONTACT,
+  ABOUT_DATA_SOURCE,
+  ABOUT_DESCRIPTION,
+  ABOUT_DISCLAIMER_INDEX,
+  ABOUT_INTRO,
+  ABOUT_TITLE,
+  APP_VERSION,
+  EXAMPLE_IGDB,
+  EXAMPLE_STARS,
+  formatStars,
+  HOW_IT_WORKS,
+  igdbMeterFill,
+  SITE_NAME,
+  TWO_SCORES_CAVEAT,
+  TWO_SCORES_LEAD,
+  TWO_SCORES_OURS,
+  TWO_SCORES_THEIRS,
+} from "@sidequestd/core";
+
 import { AppShell } from "@/components/app-shell";
+import { Prose } from "@/components/prose";
 import { StarRating } from "@/components/star-rating";
 import { buttonStyles } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { PageHeader } from "@/components/ui/page-header";
-import { igdbMeterFill } from "@/lib/catalog";
-import { formatStars } from "@/lib/reviews";
-import { APP_VERSION, CONTACT_EMAIL, IGDB_URL, SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "About",
   description: `What ${SITE_NAME} is, how it works, and where its game data comes from.`,
 };
 
-/** The five things the product does, as a numbered editorial band. */
-const HOW_IT_WORKS = [
-  {
-    n: "01",
-    title: "Log it",
-    body: "Rate out of five with half stars, write as much or as little as you want, and attach the screenshots you actually took. One review per game, editable forever — the record is meant to be revised when you change your mind.",
-  },
-  {
-    n: "02",
-    title: "Follow it",
-    body: "A feed of the people you follow: their reviews first, their backlog moves woven in between, newest at the top. No ranking, no suggested posts from strangers.",
-  },
-  {
-    n: "03",
-    title: "Track it",
-    body: "Four lists that do not need managing — to be played, playing, completed, dropped. A game sits on exactly one of them, so moving it is the whole interaction.",
-  },
-  {
-    n: "04",
-    title: "Find it",
-    body: "Trending is computed from real activity over a rolling seven-day window, not from what a publisher paid for. Browse by genre and platform, or take the recommendations built from the games you called favourites.",
-  },
-  {
-    n: "05",
-    title: "Keep it to yourself",
-    body: "Accounts can be private. Then your reviews, stats and lists are visible only to followers you approved, and that is enforced on the server for every request — not hidden in the interface.",
-  },
-];
-
-/**
- * The numbers in the "two scores" illustration.
- *
- * `EXAMPLE_STARS` is on the stored 1–10 scale that `StarRating` and
- * `formatStars` both take, not the 0–5 a reader sees — 5 renders as 2.5. Picked
- * to disagree loudly with the IGDB figure beside it, because a pair that agreed
- * would illustrate nothing.
- */
-const EXAMPLE_STARS = 5;
-const EXAMPLE_IGDB = 87;
-
 export default function AboutPage() {
   return (
     <AppShell>
       <div className="max-w-2xl">
-        <PageHeader
-          eyebrow="About"
-          title="What Sidequestd is"
-          description="A place to write down every game you play, and to see what the people you follow are playing."
-        />
+        <PageHeader eyebrow="About" title={ABOUT_TITLE} description={ABOUT_DESCRIPTION} />
 
         <section className="mt-16">
           <Eyebrow as="h2" rule>
             The idea
           </Eyebrow>
-          <div className="mt-6 space-y-5 text-base leading-relaxed text-fg-dim">
-            <p>
-              You put eighty hours into a game, and a year later all that is left is a vague sense
-              that it was good. The screenshots are in a folder you never open. The opinion you
-              actually had — the sharp, specific one, the week you finished it — is gone.
-            </p>
-            <p>
-              {SITE_NAME} is the record. You rate a game, you write down what you thought, you
-              attach the screenshots you took at the time, and it stays. The rating is the cheap
-              part; the sentence you wrote the week you finished something is the part you will be
-              glad about later.
-            </p>
-            <p>
-              And it is social, because playing is. What you see is the people you chose to follow,
-              in the order they posted, with their own screenshots — not press assets, not key art,
-              not a stranger&apos;s take promoted into your day.
-            </p>
+          {/* The container carries the type, so `Prose`'s bare `<p>`s inherit it
+              — which is the same arrangement `prose-legal` makes on the policy
+              pages, and why one renderer serves both without a variant. */}
+          <div className="prose-inline mt-6 space-y-5 text-base leading-relaxed text-fg-dim">
+            <Prose blocks={ABOUT_INTRO} />
           </div>
         </section>
 
@@ -122,11 +90,7 @@ export default function AboutPage() {
           <Eyebrow as="h2" rule>
             Two scores, not one
           </Eyebrow>
-          <p className="mt-6 text-base leading-relaxed text-fg-dim">
-            Every game page shows two numbers, and they measure different things. The stars are the{" "}
-            {SITE_NAME} average — what members here rated it, out of five. The 0–100 meter is
-            IGDB&apos;s, aggregated from a much larger and much broader pool.
-          </p>
+          <p className="mt-6 text-base leading-relaxed text-fg-dim">{TWO_SCORES_LEAD}</p>
 
           {/* Built from the same `StarRating` and `igdbMeterFill` the real
               component uses, rather than from a mock-up that approximates them.
@@ -141,9 +105,7 @@ export default function AboutPage() {
                   <StarRating rating={EXAMPLE_STARS} size={15} />
                   <span className="type-eyebrow text-fg">{formatStars(EXAMPLE_STARS)}</span>
                 </div>
-                <p className="mt-4 text-sm leading-relaxed text-fg-dim">
-                  Members here, out of five. A smaller and more opinionated group.
-                </p>
+                <p className="mt-4 text-sm leading-relaxed text-fg-dim">{TWO_SCORES_OURS}</p>
               </div>
 
               <div className="px-5 py-5">
@@ -157,54 +119,38 @@ export default function AboutPage() {
                   </span>
                   <span className="type-eyebrow text-fg">{EXAMPLE_IGDB}</span>
                 </div>
-                <p className="mt-4 text-sm leading-relaxed text-fg-dim">
-                  Everyone, out of a hundred. Broader, and slower to move.
-                </p>
+                <p className="mt-4 text-sm leading-relaxed text-fg-dim">{TWO_SCORES_THEIRS}</p>
               </div>
             </div>
           </Card>
 
-          <p className="mt-5 text-sm leading-relaxed text-fg-faint">
-            An example, not a real game. The two disagree often, and that is the point of showing
-            both — a game the wider world rates {EXAMPLE_IGDB} and the people you follow rate two
-            stars is telling you something neither number would on its own.
-          </p>
+          <p className="mt-5 text-sm leading-relaxed text-fg-faint">{TWO_SCORES_CAVEAT}</p>
         </section>
 
         <section className="mt-16">
           <Eyebrow as="h2" rule>
             Where the game data comes from
           </Eyebrow>
-          <div className="mt-6 space-y-5 text-base leading-relaxed text-fg-dim">
-            <p>
-              Titles, cover art, release dates, genres, platforms and the 0–100 rating all come from{" "}
-              <a href={IGDB_URL} target="_blank" rel="noreferrer" className="link text-fg">
-                IGDB
-              </a>
-              , the games database. The catalog is synced on a schedule and cached here so that
-              browsing does not depend on a live third-party call, and trending is recomputed from
-              activity on this site rather than fetched.
-            </p>
-            <p>
-              Cover images are served directly from IGDB&apos;s own image CDN. Ratings are shown as
-              IGDB reports them and are not adjusted.
-            </p>
-            <p className="text-fg-faint">
-              {SITE_NAME} is not affiliated with, endorsed by, or sponsored by IGDB or Twitch.
-            </p>
+          <div className="prose-inline mt-6 space-y-5 text-base leading-relaxed text-fg-dim">
+            {/* Rendered a block at a time rather than in one call, because the
+                affiliation line is a disclaimer rather than an explanation and
+                is set one step dimmer than the two above it. */}
+            {ABOUT_DATA_SOURCE.map((block, index) => (
+              <div
+                key={index}
+                className={index === ABOUT_DISCLAIMER_INDEX ? "text-fg-faint" : undefined}
+              >
+                <Prose blocks={[block]} />
+              </div>
+            ))}
           </div>
         </section>
 
         <section className="mt-16 border-t border-line pt-10">
           <Eyebrow as="h2">Get in touch</Eyebrow>
-          <p className="mt-5 text-base leading-relaxed text-fg-dim">
-            {SITE_NAME} is an independent project, not a company. Bugs, requests, and anything about
-            your account or your data go to{" "}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="link text-fg">
-              {CONTACT_EMAIL}
-            </a>
-            .
-          </p>
+          <div className="prose-inline mt-5 space-y-5 text-base leading-relaxed text-fg-dim">
+            <Prose blocks={ABOUT_CONTACT} />
+          </div>
 
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <Link href="/privacy" className={buttonStyles({ variant: "secondary", size: "sm" })}>

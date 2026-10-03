@@ -16,7 +16,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { StarRating } from "@/components/star-rating";
-import { reviewPath } from "@/lib/reviews";
+import { reviewPath } from "@sidequestd/core";
 import type { ReviewSummary } from "@sidequestd/api-types";
 
 export function ReviewTile({ review }: { review: ReviewSummary }) {

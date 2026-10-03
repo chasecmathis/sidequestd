@@ -22,16 +22,17 @@ import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { inputStyles } from "@/components/ui/field";
 import { ListSkeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/lib/auth";
 import {
-  COMMENTS_PAGE_SIZE,
   COMMENT_MAX_LENGTH,
   commentCounter,
+  COMMENTS_PAGE_SIZE,
   ownsComment,
+  profilePath,
   rejectComment,
   timeAgo,
-} from "@/lib/interactions";
-import { profilePath } from "@/lib/profile";
+  useAuth,
+} from "@sidequestd/core";
+
 import type { CommentItem, CommentPage, CommentThread } from "@sidequestd/api-types";
 
 /**

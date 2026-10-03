@@ -22,19 +22,20 @@ import { inputStyles } from "@/components/ui/field";
 import { ReviewSkeleton } from "@/components/ui/skeleton";
 import { Field, FormError, FormSuccess, SubmitButton } from "@/components/form";
 import { StarRatingInput } from "@/components/star-rating";
-import { ApiError } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
 import {
   ACCEPTED_MEDIA,
-  MAX_MEDIA_PER_REVIEW,
-  REVIEW_TEXT_MAX_LENGTH,
+  ApiError,
   isVideo,
+  MAX_MEDIA_PER_REVIEW,
   minutesToPlaytimeInput,
   playtimeToMinutes,
   rejectMedia,
+  REVIEW_TEXT_MAX_LENGTH,
   reviewPath,
   tally,
-} from "@/lib/reviews";
+  useAuth,
+} from "@sidequestd/core";
+
 import type { ReviewDetail, ReviewMediaItem, ReviewUpdate } from "@sidequestd/api-types";
 
 export default function EditReviewPage() {

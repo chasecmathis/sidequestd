@@ -10,7 +10,7 @@ const authedRequest = vi.fn();
 
 let currentUser: UserMe | null = null;
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@sidequestd/core/auth", () => ({
   useAuth: () => ({
     authedRequest,
     user: currentUser,

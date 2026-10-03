@@ -4,22 +4,20 @@
  * Inline paths cost no request and no CSP exception, and — being `currentColor`
  * — they follow the theme instead of being white PNGs that disappear on paper.
  *
- * Shared rather than inlined at each call site because two places now draw
- * Steam: the connect card on the settings screen, and the store link in a game's
- * metadata line. Two hand-copied path strings is how those two surfaces start
- * quietly disagreeing about what Steam looks like.
+ * The path data itself lives in `@sidequestd/core`, the way `STAR_PATH` does and
+ * for the same reason: three surfaces draw Steam now, one of them on a phone,
+ * and a hand-copied path string is how two clients quietly start disagreeing
+ * about what a logo looks like. What is left here is the `<svg>` element, which
+ * is the half that has no native equivalent.
  *
  * An unrecognised source renders nothing at all instead of a placeholder glyph.
  * The label beside it already names the store, and a generic box would read as a
  * broken image rather than as "we have no mark for this one".
  */
-const MARKS: Record<string, string> = {
-  steam:
-    "M11.98 2a10 10 0 0 0-9.96 9.19l5.34 2.2a2.82 2.82 0 0 1 1.6-.49h.14l2.38-3.44v-.05a3.77 3.77 0 1 1 3.77 3.77h-.09l-3.39 2.42v.12a2.83 2.83 0 0 1-5.61.5l-3.82-1.58A10 10 0 1 0 11.98 2Zm-3.6 15.17a2.18 2.18 0 0 0 2.83-1.18 2.17 2.17 0 0 0-1.18-2.83l-.9-.37a2.5 2.5 0 0 1 1.9 4.62l-1.56-.64a2.2 2.2 0 0 0 .9.4Zm8.87-6.9a2.51 2.51 0 1 0-5.02 0 2.51 2.51 0 0 0 5.02 0Zm-4.39 0a1.89 1.89 0 1 1 1.88 1.87 1.88 1.88 0 0 1-1.88-1.88Z",
-};
+import { storeMarkPath } from "@sidequestd/core";
 
 export function StoreMark({ source, className }: { source: string; className?: string }) {
-  const path = MARKS[source];
+  const path = storeMarkPath(source);
   if (!path) return null;
 
   return (

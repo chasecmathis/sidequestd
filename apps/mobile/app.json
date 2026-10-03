@@ -3,25 +3,96 @@
     "name": "Sidequestd",
     "slug": "sidequestd",
     "version": "0.1.0",
+    "icon": "./assets/icon.png",
     "orientation": "portrait",
     "scheme": "sidequestd",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#0a090d",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.sidequestd.client"
+      "bundleIdentifier": "app.sidequestd.client",
+      "associatedDomains": [
+        "applinks:sidequestd.app"
+      ],
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "app.sidequestd.client",
-      "edgeToEdgeEnabled": true
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#c08cff"
+      },
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ],
+          "data": [
+            {
+              "scheme": "https",
+              "host": "sidequestd.app",
+              "pathPrefix": "/reset-password"
+            }
+          ]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
-      "output": "static"
+      "output": "static",
+      "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-router", "expo-secure-store"],
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon-light.png",
+          "imageWidth": 180,
+          "backgroundColor": "#f7f5fa",
+          "dark": {
+            "image": "./assets/splash-icon-dark.png",
+            "backgroundColor": "#0a090d"
+          }
+        }
+      ],
+      "expo-video",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Sidequestd needs your photo library to attach screenshots and clips to a review, and to set your profile picture.",
+          "cameraPermission": "Sidequestd needs the camera to take a photo for a review."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#c08cff"
+        }
+      ],
+      "expo-web-browser"
+    ],
     "extra": {
-      "apiUrl": "http://localhost:8000"
-    }
+      "router": {},
+      "eas": {
+        "projectId": "47b92e4a-1d4e-4ea6-840c-14d2fcf540dd"
+      }
+    },
+    "owner": "chasecmathis"
   }
 }

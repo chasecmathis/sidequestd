@@ -4,7 +4,7 @@
 import Image from "next/image";
 
 import { cn } from "@/lib/cn";
-import { avatarInitial } from "@/lib/profile";
+import { avatarInitial } from "@sidequestd/core";
 import type { UserPublic } from "@sidequestd/api-types";
 
 type Subject = Pick<UserPublic, "username" | "display_name" | "avatar_url">;

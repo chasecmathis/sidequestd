@@ -269,6 +269,105 @@
         }
       }
     },
+    "/api/v1/users/me/devices": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Register this device for push",
+        "description": "Put a push token on file for the caller (SPEC \u00a76.12).\n\nIdempotent, and idempotent in the strong sense: sending a token that is\nalready registered to somebody *else* moves it to the caller rather than\nfailing. That is not a convenience \u2014 a phone that changes hands would\notherwise keep receiving the previous member's notifications on its lock\nscreen, and the previous member is in no position to tell us to stop.\n\nAlways a 200. There is nothing a client could do about a refusal here except\nlose its notifications, and the response says whether this deployment can\ndeliver anything at all so a client can be honest about what it promised.",
+        "operationId": "register_device_api_v1_users_me_devices_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceRegistration"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceRegistered"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/devices/{token}": {
+      "delete": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Stop pushing to this device",
+        "description": "What signing out sends, before the session goes.\n\nA 200 whether or not there was a row, for the same reason unliking something\nyou never liked is a success: the caller wanted this device not to be\nregistered, and it is not. A 404 here would also confirm to anyone guessing\ntokens which of them exist.\n\nThe token is a path segment and contains brackets \u2014 `ExponentPushToken[\u2026]` \u2014\nso a client has to percent-encode it. That is the only sharp edge in this\nmodule and it is the client's to handle.",
+        "operationId": "forget_device_api_v1_users_me_devices__token__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "description": "The token to forget",
+              "title": "Token"
+            },
+            "description": "The token to forget"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceRegistered"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me": {
       "get": {
         "tags": [
@@ -3418,8 +3517,31 @@
           "connections"
         ],
         "summary": "Begin linking a Steam account",
-        "description": "Hand back the Steam URL to send the member to.\n\nReturned rather than redirected: the caller is the app's own client making an\nauthenticated XHR, and it needs to move its *top-level* window to this URL.\nAnswering with a 302 would only redirect the fetch.",
+        "description": "Hand back the Steam URL to send the member to.\n\nReturned rather than redirected: the caller is the app's own client making an\nauthenticated XHR, and it needs to move its *top-level* window to this URL.\nAnswering with a 302 would only redirect the fetch. The phone does the same\nthing with `openAuthSessionAsync`, which is the platform's own window for\nexactly this \u2014 a browser the app can open and be handed the result of.\n\nDefaulting to `web` rather than requiring the parameter keeps the web\nclient's request the one it has always sent, and means a client that has not\nheard of this cannot accidentally aim the callback at an app.",
         "operationId": "start_steam_link_api_v1_connections_steam_start_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "client",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "web",
+                "native"
+              ],
+              "type": "string",
+              "description": "Which client is asking, so the callback knows where to send them back",
+              "default": "web",
+              "title": "Client"
+            },
+            "description": "Which client is asking, so the callback knows where to send them back"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3433,13 +3555,18 @@
           },
           "503": {
             "description": "Steam linking is not configured here"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/connections/steam/sync": {
@@ -4251,6 +4378,62 @@
           "items"
         ],
         "title": "CursorPage[UserSearchResult]"
+      },
+      "DevicePlatform": {
+        "type": "string",
+        "enum": [
+          "IOS",
+          "ANDROID"
+        ],
+        "title": "DevicePlatform",
+        "description": "Which store's app a push token belongs to.\n\nNot used to pick a delivery route \u2014 every token goes to the same Expo push\nservice, which knows from the token itself whether APNs or FCM is on the\nother end. It is here because a member with a phone and a tablet cannot tell\ntwo rows apart otherwise, and because \"why did nothing arrive on Android\"\nis a question that cannot be answered without knowing which rows were\nAndroid in the first place."
+      },
+      "DeviceRegistered": {
+        "properties": {
+          "registered": {
+            "type": "boolean",
+            "title": "Registered",
+            "description": "The token is on file for the caller"
+          },
+          "push_enabled": {
+            "type": "boolean",
+            "title": "Push Enabled",
+            "description": "Whether this deployment sends push at all"
+          }
+        },
+        "type": "object",
+        "required": [
+          "registered",
+          "push_enabled"
+        ],
+        "title": "DeviceRegistered",
+        "description": "What registration answers with.\n\nA body rather than a 204 for one reason: `push_enabled` tells the client\nwhether this deployment can actually deliver anything, which is the\ndifference between \"we will notify you\" and \"we wrote your address down\".\nA client that knows the answer can keep polling honestly instead of\npromising a badge that will never move on its own."
+      },
+      "DeviceRegistration": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Token",
+            "description": "An Expo push token \u2014 `ExponentPushToken[\u2026]`",
+            "examples": [
+              "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+            ]
+          },
+          "platform": {
+            "$ref": "#/components/schemas/DevicePlatform",
+            "description": "Which store's build this token came from"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "token",
+          "platform"
+        ],
+        "title": "DeviceRegistration",
+        "description": "POST /users/me/devices.\n\nIdempotent by design: the client registers on every cold start rather than\ntracking whether it has registered before, because a token can be reissued\nby the OS at any time and a client that only registered once would go quiet\nwithout noticing."
       },
       "DiscoverResponse": {
         "properties": {

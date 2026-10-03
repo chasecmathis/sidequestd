@@ -14,7 +14,7 @@
 import Image from "next/image";
 
 import { Badge } from "@/components/ui/badge";
-import { isProcessing, isVideo } from "@/lib/reviews";
+import { isProcessing, isVideo } from "@sidequestd/core";
 import type { ReviewMediaItem } from "@sidequestd/api-types";
 
 function Item({ item, title }: { item: ReviewMediaItem; title: string }) {

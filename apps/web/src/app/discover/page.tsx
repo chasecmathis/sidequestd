@@ -25,8 +25,14 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { GameGridSkeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/ui/page-header";
-import { useAuth } from "@/lib/auth";
-import { browseQuery, orderFacetOptions, toggleFacet, visibleFacetOptions } from "@/lib/catalog";
+import {
+  browseQuery,
+  orderFacetOptions,
+  toggleFacet,
+  useAuth,
+  visibleFacetOptions,
+} from "@sidequestd/core";
+
 import { cn } from "@/lib/cn";
 import type {
   DiscoverResponse,

@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@sidequestd/core";
 import type { ReviewDetail, ReviewMediaItem, UserMe } from "@sidequestd/api-types";
 
 import EditReviewPage from "./page";
@@ -18,8 +18,8 @@ let isLoading = false;
 // real app. Stubbed rather than wrapped, matching how auth and notifications are
 // handled just below; `importActual` keeps the module's constants real so a
 // renamed export still breaks loudly.
-vi.mock("@/lib/theme", async (importActual) => ({
-  ...(await importActual<typeof import("@/lib/theme")>()),
+vi.mock("@sidequestd/core/theme", async (importActual) => ({
+  ...(await importActual<typeof import("@sidequestd/core/theme")>()),
   useTheme: () => ({ theme: "system" as const, resolved: "dark" as const, setTheme: vi.fn() }),
 }));
 
@@ -29,7 +29,7 @@ vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "r1" }),
 }));
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@sidequestd/core/auth", () => ({
   useAuth: () => ({
     authedRequest,
     user: currentUser,
@@ -42,7 +42,7 @@ vi.mock("@/lib/auth", () => ({
 // The app shell carries an unread badge (SPEC §6.12). Stubbed so this file's
 // `authedRequest` mock is never asked for a count it has no answer for, and so
 // these tests do not depend on a provider none of them are about.
-vi.mock("@/lib/notifications-store", () => ({
+vi.mock("@sidequestd/core/notifications-store", () => ({
   useNotifications: () => ({ unreadCount: 0, markRead: vi.fn(), refresh: vi.fn() }),
 }));
 

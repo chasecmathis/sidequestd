@@ -22,9 +22,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { inputStyles } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { GameGridSkeleton, ListSkeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/lib/auth";
-import { searchQuery } from "@/lib/catalog";
-import { profilePath } from "@/lib/profile";
+import { profilePath, searchQuery, useAuth } from "@sidequestd/core";
+
 import type {
   GamePage,
   GameSummary,

@@ -5,7 +5,7 @@ import { useState, type FormEvent } from "react";
 
 import { AuthShell } from "@/components/auth-shell";
 import { Field, FormError, FormSuccess, SubmitButton } from "@/components/form";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@sidequestd/core";
 import type { MessageResponse } from "@sidequestd/api-types";
 
 export default function ForgotPasswordPage() {

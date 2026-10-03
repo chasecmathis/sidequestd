@@ -4,7 +4,7 @@
 #
 #     docker build -t sidequestd-api apps/api
 #
-# See DEPLOY.md at the repo root for the environment it expects.
+# See .context/architecture/deployment.md at the repo root for the environment it expects.
 
 # --- builder ---------------------------------------------------------------
 # uv resolves from the committed lockfile into a self-contained .venv, which the
@@ -27,8 +27,7 @@ COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project
 
-# README.md is referenced by pyproject's `readme`, so the project build needs it.
-COPY README.md alembic.ini ./
+COPY alembic.ini ./
 COPY app ./app
 COPY migrations ./migrations
 RUN --mount=type=cache,target=/root/.cache/uv \

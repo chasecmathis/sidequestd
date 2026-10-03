@@ -2,7 +2,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@sidequestd/core";
 import { settle } from "@/test-support";
 import type {
   BacklogEntry,
@@ -22,8 +22,8 @@ const authedRequest = vi.fn();
 // real app. Stubbed rather than wrapped, matching how auth and notifications are
 // handled just below; `importActual` keeps the module's constants real so a
 // renamed export still breaks loudly.
-vi.mock("@/lib/theme", async (importActual) => ({
-  ...(await importActual<typeof import("@/lib/theme")>()),
+vi.mock("@sidequestd/core/theme", async (importActual) => ({
+  ...(await importActual<typeof import("@sidequestd/core/theme")>()),
   useTheme: () => ({ theme: "system" as const, resolved: "dark" as const, setTheme: vi.fn() }),
 }));
 
@@ -36,14 +36,14 @@ vi.mock("next/navigation", () => ({
 let isLoading = false;
 let viewer: { id: string; username: string; is_private: boolean } | null = null;
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@sidequestd/core/auth", () => ({
   useAuth: () => ({ authedRequest, user: viewer, isLoading, logout: vi.fn(), syncUser: vi.fn() }),
 }));
 
 // The app shell carries an unread badge (SPEC §6.12). Stubbed so this file's
 // `authedRequest` mock is never asked for a count it has no answer for, and so
 // these tests do not depend on a provider none of them are about.
-vi.mock("@/lib/notifications-store", () => ({
+vi.mock("@sidequestd/core/notifications-store", () => ({
   useNotifications: () => ({ unreadCount: 0, markRead: vi.fn(), refresh: vi.fn() }),
 }));
 
@@ -177,6 +177,26 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Unmount *before* clearing, and the order is the whole of it.
+  //
+  // This screen fetches in two waves: one effect gets the profile, and a second
+  // keyed on the id that comes back fires three more — reviews, backlog,
+  // connections. Several tests here return as soon as the first wave has
+  // rendered, so the other three are still in flight when the test ends.
+  //
+  // Clear the mock while that tree is still mounted and those three arrive
+  // afterwards, inside the *next* test's call count. Unmount first and the
+  // effects' `cancelled` guards mean the second wave is never dispatched at
+  // all. "waits for the session before fetching" is the test that noticed,
+  // because asserting a spy was never called is the one assertion a stray call
+  // from a previous test can break — and it broke rarely, only under enough
+  // load to change where the promises landed.
+  //
+  // Testing Library registers a cleanup of its own under `globals: true`, but
+  // hooks run in reverse registration order, so that one runs *after* this
+  // whole function. Calling it here is idempotent and puts the unmount on the
+  // correct side of the clear.
+  cleanup();
   vi.clearAllMocks();
 });
 

@@ -23,8 +23,8 @@ import { SteamConnectCard } from "@/components/connections/steam-connect-card";
 import { Alert } from "@/components/ui/alert";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { ProfileSkeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/lib/auth";
-import { CONNECTIONS_PATH, callbackMessage, type SyncNotice } from "@/lib/connections";
+import { callbackMessage, CONNECTIONS_PATH, useAuth, type SyncNotice } from "@sidequestd/core";
+
 import type { ConnectionStatus, LinkedAccount } from "@sidequestd/api-types";
 
 function ConnectionsScreen() {

@@ -7,7 +7,7 @@ import { Suspense, useState, type FormEvent } from "react";
 import { AuthShell } from "@/components/auth-shell";
 import { Field, FormError, FormSuccess, SubmitButton } from "@/components/form";
 import { buttonStyles } from "@/components/ui/button";
-import { ApiError, apiRequest } from "@/lib/api";
+import { ApiError, apiRequest } from "@sidequestd/core";
 import type { MessageResponse } from "@sidequestd/api-types";
 
 function ResetPasswordForm() {

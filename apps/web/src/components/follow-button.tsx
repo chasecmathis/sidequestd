@@ -17,8 +17,14 @@ import { useEffect, useState } from "react";
 
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/auth";
-import { followActionLabel, followLabel, followRequest, optimisticState } from "@/lib/social";
+import {
+  followActionLabel,
+  followLabel,
+  followRequest,
+  optimisticState,
+  useAuth,
+} from "@sidequestd/core";
+
 import type { FollowResult, FollowState, UserPublic } from "@sidequestd/api-types";
 
 interface FollowButtonProps {

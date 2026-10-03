@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@sidequestd/api-types": "*",
+    "@sidequestd/design-tokens": "*",
     "lucide-react": "^1.29.0",
     "motion": "^13.0.0",
     "next": "^15.5.4",

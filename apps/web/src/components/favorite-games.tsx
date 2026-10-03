@@ -32,9 +32,15 @@ import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { inputStyles } from "@/components/ui/field";
-import { releaseYearLabel, searchQuery } from "@/lib/catalog";
-import { useAuth } from "@/lib/auth";
-import { MAX_FAVORITE_GAMES, moveFavorite, slotLabel } from "@/lib/profile";
+import {
+  MAX_FAVORITE_GAMES,
+  moveFavorite,
+  releaseYearLabel,
+  searchQuery,
+  slotLabel,
+  useAuth,
+} from "@sidequestd/core";
+
 import type { FavoriteGameEntry, GamePage, GameSummary } from "@sidequestd/api-types";
 
 const DEBOUNCE_MS = 250;

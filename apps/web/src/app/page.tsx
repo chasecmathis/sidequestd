@@ -23,8 +23,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { buttonStyles } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Wordmark } from "@/components/ui/wordmark";
-import { useAuth } from "@/lib/auth";
-
+import { useAuth } from "@sidequestd/core";
 /** The headline, split so each word can arrive on its own beat. */
 const HEADLINE = [
   { text: "Every", italic: false },

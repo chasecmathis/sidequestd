@@ -26,7 +26,7 @@ import {
   formatLibraryPlaytime,
   formatTotalPlaytime,
   providerLabel,
-} from "@/lib/connections";
+} from "@sidequestd/core";
 import type { PlatformShowcase as Showcase } from "@sidequestd/api-types";
 
 export function PlatformShowcase({ showcases }: { showcases: Showcase[] }) {

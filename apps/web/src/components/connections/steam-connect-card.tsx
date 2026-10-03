@@ -30,7 +30,6 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { StoreMark } from "@/components/ui/store-mark";
-import { useAuth } from "@/lib/auth";
 import {
   canSyncNow,
   cooldownLabel,
@@ -40,7 +39,9 @@ import {
   matchedLabel,
   providerLabel,
   syncNotice,
-} from "@/lib/connections";
+  useAuth,
+} from "@sidequestd/core";
+
 import type { ConnectionStart, LinkedAccount } from "@sidequestd/api-types";
 
 export function SteamConnectCard({

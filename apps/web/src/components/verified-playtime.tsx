@@ -21,7 +21,7 @@
 import { BadgeCheck } from "lucide-react";
 
 import { cn } from "@/lib/cn";
-import { formatLibraryPlaytime, providerLabel } from "@/lib/connections";
+import { formatLibraryPlaytime, providerLabel } from "@sidequestd/core";
 import type { VerifiedPlaytime as Verified } from "@sidequestd/api-types";
 
 export function VerifiedPlaytimeChip({

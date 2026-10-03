@@ -26,16 +26,17 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { ListSkeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/lib/auth";
-import { timeAgo } from "@/lib/interactions";
 import {
-  NOTIFICATIONS_PAGE_SIZE,
   notificationHref,
+  NOTIFICATIONS_PAGE_SIZE,
   notificationText,
+  profilePath,
+  timeAgo,
   unreadIds,
-} from "@/lib/notifications";
-import { useNotifications } from "@/lib/notifications-store";
-import { profilePath } from "@/lib/profile";
+  useAuth,
+  useNotifications,
+} from "@sidequestd/core";
+
 import type { NotificationItem, NotificationPage } from "@sidequestd/api-types";
 
 function Row({ item, onMarkRead }: { item: NotificationItem; onMarkRead: (id: string) => void }) {

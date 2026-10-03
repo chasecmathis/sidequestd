@@ -20,10 +20,11 @@
  */
 import Link from "next/link";
 
+import { APP_VERSION, IGDB_URL, SITE_NAME, SITE_TAGLINE } from "@sidequestd/core";
+
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Wordmark } from "@/components/ui/wordmark";
 import { cn } from "@/lib/cn";
-import { APP_VERSION, IGDB_URL, SITE_NAME, SITE_TAGLINE } from "@/lib/site";
 
 interface FooterLink {
   href: string;

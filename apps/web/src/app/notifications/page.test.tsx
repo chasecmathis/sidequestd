@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@sidequestd/core";
 import type { GameSummary, NotificationItem, UserMe } from "@sidequestd/api-types";
 
 import NotificationsPage from "./page";
@@ -15,8 +15,8 @@ const replace = vi.fn();
 // real app. Stubbed rather than wrapped, matching how auth and notifications are
 // handled just below; `importActual` keeps the module's constants real so a
 // renamed export still breaks loudly.
-vi.mock("@/lib/theme", async (importActual) => ({
-  ...(await importActual<typeof import("@/lib/theme")>()),
+vi.mock("@sidequestd/core/theme", async (importActual) => ({
+  ...(await importActual<typeof import("@sidequestd/core/theme")>()),
   useTheme: () => ({ theme: "system" as const, resolved: "dark" as const, setTheme: vi.fn() }),
 }));
 
@@ -28,7 +28,7 @@ vi.mock("next/navigation", () => ({
 let currentUser: UserMe | null = null;
 let isLoading = false;
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@sidequestd/core/auth", () => ({
   useAuth: () => ({
     authedRequest,
     user: currentUser,
@@ -43,7 +43,7 @@ vi.mock("@/lib/auth", () => ({
 // something inferred from a request body.
 let unreadCount = 0;
 
-vi.mock("@/lib/notifications-store", () => ({
+vi.mock("@sidequestd/core/notifications-store", () => ({
   useNotifications: () => ({ unreadCount, markRead, refresh: vi.fn() }),
 }));
 

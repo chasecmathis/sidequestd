@@ -16,7 +16,7 @@ import secrets
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any, Final
+from typing import Any, Final, Literal
 
 import jwt
 from argon2 import PasswordHasher
@@ -109,8 +109,26 @@ def decode_access_token(token: str) -> uuid.UUID:
 # --- OAuth state -----------------------------------------------------------
 
 
+OAuthClient = Literal["web", "native"]
+OAUTH_CLIENT_WEB: Final[OAuthClient] = "web"
+OAUTH_CLIENT_NATIVE: Final[OAuthClient] = "native"
+
+
+@dataclass(frozen=True, slots=True)
+class OAuthState:
+    """Who began an external link flow, and which client they began it in."""
+
+    user_id: uuid.UUID
+    client: OAuthClient
+
+
 def create_oauth_state_token(
-    subject: uuid.UUID, provider: str, *, ttl_minutes: int, now: datetime | None = None
+    subject: uuid.UUID,
+    provider: str,
+    *,
+    ttl_minutes: int,
+    client: OAuthClient = OAUTH_CLIENT_WEB,
+    now: datetime | None = None,
 ) -> str:
     """Carry the caller's identity through an external redirect.
 
@@ -122,6 +140,14 @@ def create_oauth_state_token(
 
     `provider` is bound into the token so a state minted for one platform cannot
     be replayed at another's callback.
+
+    `client` rides in here rather than in a query parameter of its own, and that
+    is the whole reason the phone can finish a link without leaving the app. The
+    callback has to decide between two very different addresses to send a browser
+    to — the web client's, or a `sidequestd://` URL only the app answers — and a
+    forgeable parameter deciding that would let a stranger aim our redirect
+    wherever they liked. The state is already signed and already short-lived, so
+    it is the one thing in the round trip that cannot be edited on the way past.
     """
     issued_at = now or datetime.now(UTC)
     expires_at = issued_at + timedelta(minutes=ttl_minutes)
@@ -129,6 +155,7 @@ def create_oauth_state_token(
         "sub": str(subject),
         "type": TOKEN_TYPE_OAUTH_STATE,
         "provider": provider,
+        "client": client,
         # Freshness alone does not make two concurrent link attempts
         # distinguishable in logs; this does.
         "jti": uuid.uuid4().hex,
@@ -138,8 +165,8 @@ def create_oauth_state_token(
     return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
 
 
-def decode_oauth_state_token(token: str, provider: str) -> uuid.UUID:
-    """Return the member who began the flow, or raise InvalidTokenError."""
+def decode_oauth_state_token(token: str, provider: str) -> OAuthState:
+    """Return who began the flow and where they began it, or raise InvalidTokenError."""
     try:
         payload = jwt.decode(
             token,
@@ -158,9 +185,20 @@ def decode_oauth_state_token(token: str, provider: str) -> uuid.UUID:
         raise InvalidTokenError("wrong provider")
 
     try:
-        return uuid.UUID(payload["sub"])
+        user_id = uuid.UUID(payload["sub"])
     except (KeyError, ValueError) as exc:
         raise InvalidTokenError("malformed subject") from exc
+
+    # An unrecognised client is version skew, not an attack — the signature
+    # already proves we minted this. A state issued before the claim existed, or
+    # by a newer deploy that knows a third client, resolves to the web, which is
+    # a real address rather than a scheme this device may have nothing
+    # registered for.
+    client = payload.get("client")
+    return OAuthState(
+        user_id=user_id,
+        client=OAUTH_CLIENT_NATIVE if client == OAUTH_CLIENT_NATIVE else OAUTH_CLIENT_WEB,
+    )
 
 
 # --- Opaque tokens (refresh, password reset) -------------------------------

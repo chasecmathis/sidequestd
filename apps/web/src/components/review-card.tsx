@@ -29,11 +29,18 @@ import { StarRating } from "@/components/star-rating";
 import { VerifiedPlaytimeChip } from "@/components/verified-playtime";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardFooter } from "@/components/ui/card";
-import { releaseYearLabel } from "@/lib/catalog";
-import { commentsPath, excerpt } from "@/lib/feed";
-import { commentCountLabel, timeAgo } from "@/lib/interactions";
-import { profilePath } from "@/lib/profile";
-import { formatPlaytime, formatStars, reviewPath } from "@/lib/reviews";
+import {
+  commentCountLabel,
+  commentsPath,
+  excerpt,
+  formatPlaytime,
+  formatStars,
+  profilePath,
+  releaseYearLabel,
+  reviewPath,
+  timeAgo,
+} from "@sidequestd/core";
+
 import type { ReviewInteractions, ReviewSummary } from "@sidequestd/api-types";
 
 export function ReviewCard({ review }: { review: ReviewSummary }) {

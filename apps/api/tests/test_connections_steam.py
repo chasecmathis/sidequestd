@@ -21,7 +21,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.security import create_access_token, create_oauth_state_token
+from app.core.security import OAuthClient, create_access_token, create_oauth_state_token
 from app.models.connections import PlatformAccount, PlatformLibraryItem
 from app.models.enums import ConnectionProvider
 from app.models.user import User
@@ -49,6 +49,7 @@ def configured(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "steam_api_key", "steam-test-key")
     monkeypatch.setattr(settings, "api_public_url", "http://localhost:8000")
     monkeypatch.setattr(settings, "web_app_url", "http://localhost:3000")
+    monkeypatch.setattr(settings, "native_app_scheme", "sidequestd")
 
 
 @pytest.fixture(autouse=True)
@@ -130,13 +131,20 @@ async def _callback(client: AsyncClient, state: str, **overrides: str) -> httpx.
     return await client.get("/api/v1/connections/steam/callback", params=params)
 
 
-def _state_for(user: User) -> str:
-    return create_oauth_state_token(user.id, steam_service.PROVIDER, ttl_minutes=10)
+def _state_for(user: User, client: OAuthClient = "web") -> str:
+    return create_oauth_state_token(user.id, steam_service.PROVIDER, ttl_minutes=10, client=client)
 
 
 def _redirect_query(response: httpx.Response) -> dict[str, list[str]]:
     assert response.status_code == 303
     return parse_qs(urlparse(response.headers["location"]).query)
+
+
+def _redirect_target(response: httpx.Response) -> str:
+    """The redirect without its query, which is the part that names the client."""
+    assert response.status_code == 303
+    parsed = urlparse(response.headers["location"])
+    return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
 
 
 # --- Starting the flow ------------------------------------------------------
@@ -433,6 +441,134 @@ async def test_linking_a_different_account_drops_the_old_library(
     assert refreshed.last_synced_at is None
     remaining = (await db.execute(sa.select(sa.func.count(PlatformLibraryItem.id)))).scalar_one()
     assert remaining == 0
+
+
+# --- Which client gets the member back --------------------------------------
+#
+# The last hop is the only thing the native client changed, and it is the only
+# thing standing between "link completes in the app" and "link completes in a
+# browser the app cannot read the result of". The choice rides in the signed
+# state, so these are also the tests that a stranger cannot aim the redirect.
+
+NATIVE_TARGET = "sidequestd://settings/connections"
+WEB_TARGET = "http://localhost:3000/settings/connections"
+
+
+async def _state_from_start(
+    http: AsyncClient, user: User, auth_headers: AuthHeaders, **params: str
+) -> str:
+    """Begin a link the way a client does, and read back the state it was given."""
+    response = await http.get(
+        "/api/v1/connections/steam/start", headers=auth_headers(user), params=params
+    )
+    assert response.status_code == 200
+    return_to = parse_qs(urlparse(response.json()["authorize_url"]).query)["openid.return_to"][0]
+    return parse_qs(urlparse(return_to).query)["state"][0]
+
+
+async def test_a_link_begun_on_a_phone_finishes_in_the_app(
+    client: AsyncClient,
+    db: AsyncSession,
+    make_user: MakeUser,
+    auth_headers: AuthHeaders,
+    steam_openid: dict[str, Any],
+    steam_profile: dict[str, Any],
+) -> None:
+    """The whole round trip, because the two halves are only useful together.
+
+    `/start` is where the client kind is declared and the callback is where it is
+    honoured; a test of either alone would pass against a version that dropped
+    the claim in between.
+    """
+    user = await make_user("ada")
+    state = await _state_from_start(client, user, auth_headers, client="native")
+
+    response = await _callback(client, state)
+
+    assert _redirect_target(response) == NATIVE_TARGET
+    assert _redirect_query(response)["connected"] == ["steam"]
+    account = (await db.execute(sa.select(PlatformAccount))).scalar_one()
+    assert account.user_id == user.id
+
+
+async def test_a_link_begun_in_a_browser_still_finishes_there(
+    client: AsyncClient,
+    make_user: MakeUser,
+    auth_headers: AuthHeaders,
+    steam_openid: dict[str, Any],
+    steam_profile: dict[str, Any],
+) -> None:
+    """The web client sends no `client` at all, and must be unaffected by any of this."""
+    user = await make_user("ada")
+    state = await _state_from_start(client, user, auth_headers)
+
+    response = await _callback(client, state)
+
+    assert _redirect_target(response) == WEB_TARGET
+
+
+async def test_a_failure_comes_back_to_the_phone_too(
+    client: AsyncClient,
+    make_user: MakeUser,
+    steam_openid: dict[str, Any],
+    steam_profile: dict[str, Any],
+) -> None:
+    """The case that would otherwise strand somebody.
+
+    A refusal is exactly when a reader needs to be back on the screen with the
+    Connect button on it. Sending the success to the app and the failures to a
+    web page would leave the app showing "Opening Steam…" forever, behind a
+    browser explaining a problem to nobody.
+    """
+    steam_openid["is_valid"] = "false"
+    user = await make_user("ada")
+
+    response = await _callback(client, _state_for(user, client="native"))
+
+    assert _redirect_target(response) == NATIVE_TARGET
+    assert _redirect_query(response)["error"] == ["verification"]
+
+
+async def test_an_unreadable_state_falls_back_to_the_web(
+    client: AsyncClient,
+    steam_openid: dict[str, Any],
+    steam_profile: dict[str, Any],
+) -> None:
+    """The state is where the answer lives, so an unusable one has no answer.
+
+    The web is the honest fallback: a `sidequestd://` URL on a machine with no
+    app installed reports nothing at all, where the web address is a page that
+    can say what went wrong to whoever lands on it.
+    """
+    response = await _callback(client, "not-a-token")
+
+    assert _redirect_target(response) == WEB_TARGET
+    assert _redirect_query(response)["error"] == ["state"]
+
+
+async def test_the_callback_will_not_be_told_where_to_send_somebody(
+    client: AsyncClient,
+    make_user: MakeUser,
+    steam_openid: dict[str, Any],
+    steam_profile: dict[str, Any],
+) -> None:
+    """Why the claim is in the signed state rather than in a parameter.
+
+    This endpoint is reachable by anybody with a URL, and a query parameter that
+    chose the redirect target would be an open redirect wearing a feature's
+    clothes. The state was minted for the web; nothing in the request may
+    override it.
+    """
+    user = await make_user("ada")
+    # Built by hand rather than through `_callback`, because the point is the
+    # parameter an attacker would add and the helper has no way to spell it.
+    params = _callback_params()
+    params["state"] = _state_for(user)
+    params["client"] = "native"
+
+    response = await client.get("/api/v1/connections/steam/callback", params=params)
+
+    assert _redirect_target(response) == WEB_TARGET
 
 
 # --- Reading and managing the link ------------------------------------------

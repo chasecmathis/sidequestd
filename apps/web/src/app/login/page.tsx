@@ -6,8 +6,7 @@ import { useState, type FormEvent } from "react";
 
 import { AuthShell } from "@/components/auth-shell";
 import { Field, FormError, SubmitButton } from "@/components/form";
-import { useAuth } from "@/lib/auth";
-
+import { useAuth } from "@sidequestd/core";
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();

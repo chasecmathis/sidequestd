@@ -20,7 +20,7 @@ import { ImageOff } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { StarGlyph } from "@/components/star-rating";
-import { formatGameRating, formatIgdbRating, releaseYearLabel } from "@/lib/catalog";
+import { formatGameRating, formatIgdbRating, releaseYearLabel } from "@sidequestd/core";
 import { cn } from "@/lib/cn";
 import type { GameSummary } from "@sidequestd/api-types";
 

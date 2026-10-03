@@ -17,7 +17,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Avatar } from "@/components/avatar";
-import { profilePath } from "@/lib/profile";
+import { profilePath } from "@sidequestd/core";
 import type { UserPublic } from "@sidequestd/api-types";
 
 type Subject = Pick<UserPublic, "username" | "display_name" | "avatar_url">;

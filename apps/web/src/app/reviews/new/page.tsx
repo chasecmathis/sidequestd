@@ -24,19 +24,21 @@ import { StarRatingInput } from "@/components/star-rating";
 import { inputStyles } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { ListSkeleton } from "@/components/ui/skeleton";
-import { ApiError } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
-import { releaseYearLabel, searchQuery } from "@/lib/catalog";
-import { playtimeSuggestionValue } from "@/lib/connections";
 import {
   ACCEPTED_MEDIA,
+  ApiError,
   MAX_MEDIA_PER_REVIEW,
-  REVIEW_TEXT_MAX_LENGTH,
+  playtimeSuggestionValue,
   playtimeToMinutes,
   rejectMedia,
+  releaseYearLabel,
+  REVIEW_TEXT_MAX_LENGTH,
   reviewPath,
+  searchQuery,
   tally,
-} from "@/lib/reviews";
+  useAuth,
+} from "@sidequestd/core";
+
 import type {
   GamePage,
   GameSummary,

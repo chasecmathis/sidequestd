@@ -3,7 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, beforeEach } from "vitest";
 
 import { ThemeMenu, ThemeSegments } from "./theme-toggle";
-import { THEME_STORAGE_KEY, ThemeProvider } from "@/lib/theme";
+import { THEME_STORAGE_KEY } from "@sidequestd/core";
+// The web wrapper rather than the shared provider, because the assertions below
+// read `data-theme` off `<html>` — and stamping that attribute is precisely the
+// part this app adds on top. See lib/theme-provider.tsx.
+import { WebThemeProvider } from "@/lib/theme-provider";
 
 // The global matchMedia stub answers `matches: false` to everything, so an
 // untouched device reads as light here. That is fine for this file — what is
@@ -15,7 +19,7 @@ beforeEach(() => {
 });
 
 function renderIn(ui: React.ReactNode) {
-  return render(<ThemeProvider>{ui}</ThemeProvider>);
+  return render(<WebThemeProvider>{ui}</WebThemeProvider>);
 }
 
 describe("ThemeMenu", () => {

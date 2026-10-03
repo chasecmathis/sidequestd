@@ -3,7 +3,7 @@
  *
  * Hand-written on purpose: if a schema is renamed or removed in the API, these
  * lines stop compiling, which is exactly the signal we want. `schema.d.ts` is
- * generated — see the README.
+ * generated — see .context/architecture/shared-packages.md.
  */
 import type { components, paths } from "./schema.js";
 
@@ -256,7 +256,13 @@ export type NotificationCommentTarget = Schemas["NotificationCommentTarget"];
 
 export type NotificationPage = CursorPage<NotificationItem>;
 
-/** What the badge shows. Polled — delivery is in-app only in this version. */
+/**
+ * What the badge shows.
+ *
+ * Still polled, on both clients. Push moves it sooner on a phone that granted
+ * the permission, but a reader who declined must get a correct number anyway —
+ * so the poll is the floor rather than the mechanism.
+ */
 export type UnreadCount = Schemas["UnreadCount"];
 
 /**
@@ -269,6 +275,28 @@ export type NotificationReadRequest = Schemas["NotificationReadRequest"];
 
 /** `marked` is how many changed; `unread_count` is what the badge says now. */
 export type NotificationReadResult = Schemas["NotificationReadResult"];
+
+/**
+ * Which store's build a push token came from — native only.
+ *
+ * The web has no counterpart to any of the three types below: a browser has no
+ * device to register. They live here rather than in the mobile app because they
+ * are the API's shapes, and the rule for this file is that every schema the API
+ * publishes is named in it.
+ */
+export type DevicePlatform = Schemas["DevicePlatform"];
+
+/** Body for `POST /users/me/devices`. Sent on every cold start, not once. */
+export type DeviceRegistration = Schemas["DeviceRegistration"];
+
+/**
+ * The answer to registering or forgetting a device.
+ *
+ * `push_enabled` is about the *deployment*, not the caller: it says whether this
+ * API sends push at all, so a client can tell "we will notify you" apart from
+ * "we wrote your address down".
+ */
+export type DeviceRegistered = Schemas["DeviceRegistered"];
 
 // --- Social graph (SPEC §6.7) ----------------------------------------------
 

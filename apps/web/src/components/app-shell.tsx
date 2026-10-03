@@ -25,14 +25,20 @@ import { ThemeMenu } from "@/components/theme-toggle";
 import { buttonStyles } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Wordmark } from "@/components/ui/wordmark";
-import { useAuth } from "@/lib/auth";
-import { CONNECTIONS_PATH } from "@/lib/connections";
+import {
+  badgeAriaLabel,
+  badgeLabel,
+  CONNECTIONS_PATH,
+  FOLLOW_REQUESTS_PATH,
+  NOTIFICATIONS_PATH,
+  profilePath,
+  useAuth,
+  useNotifications,
+} from "@sidequestd/core";
+
 import { cn } from "@/lib/cn";
 import { useDismissable } from "@/lib/use-dismissable";
-import { NOTIFICATIONS_PATH, badgeAriaLabel, badgeLabel } from "@/lib/notifications";
-import { useNotifications } from "@/lib/notifications-store";
-import { profilePath } from "@/lib/profile";
-import { FOLLOW_REQUESTS_PATH } from "@/lib/social";
+
 import type { UserMe } from "@sidequestd/api-types";
 
 interface NavItem {

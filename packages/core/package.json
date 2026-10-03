@@ -1,0 +1,42 @@
+{
+  "name": "@sidequestd/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Everything both clients agree about: the API transport, the presentation rules, and the session/backlog/notification/theme providers.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts",
+    "./auth": "./src/auth.tsx",
+    "./theme": "./src/theme.tsx",
+    "./backlog-store": "./src/backlog-store.tsx",
+    "./notifications-store": "./src/notifications-store.tsx"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sidequestd/api-types": "*"
+  },
+  "peerDependencies": {
+    "react": ">=19"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "jsdom": "^27.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

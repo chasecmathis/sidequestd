@@ -1,0 +1,34 @@
+{
+  "name": "@sidequestd/design-tokens",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Editorial Noir — the one set of colours, shapes and type scales, for both the web and native clients.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "generate": "tsx src/cli/emit-css.ts ../../apps/web/src/app/tokens.generated.css",
+    "check": "tsx src/cli/emit-css.ts ../../apps/web/src/app/tokens.generated.css --check",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "generate:brand": "tsx src/cli/emit-brand.ts",
+    "check:brand": "tsx src/cli/emit-brand.ts --check"
+  },
+  "devDependencies": {
+    "@expo-google-fonts/figtree": "^0.4.1",
+    "@expo-google-fonts/instrument-serif": "^0.4.1",
+    "@sidequestd/core": "*",
+    "@types/opentype.js": "^1.3.10",
+    "opentype.js": "^2.0.0",
+    "sharp": "^0.34.5",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

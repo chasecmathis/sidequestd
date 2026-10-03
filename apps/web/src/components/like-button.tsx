@@ -21,8 +21,14 @@ import { Heart } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 
-import { useAuth } from "@/lib/auth";
-import { likeActionLabel, likeCountLabel, likeRequest, optimisticLike } from "@/lib/interactions";
+import {
+  likeActionLabel,
+  likeCountLabel,
+  likeRequest,
+  optimisticLike,
+  useAuth,
+} from "@sidequestd/core";
+
 import type { ReviewInteractions } from "@sidequestd/api-types";
 
 export function LikeButton({

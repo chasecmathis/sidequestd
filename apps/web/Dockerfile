@@ -11,7 +11,7 @@
 #
 # Both build args are inlined into the client bundle (see next.config.ts), so
 # the image is tied to the API and media hosts it was built against. Pointing at
-# different ones means a rebuild, not a restart. See DEPLOY.md.
+# different ones means a rebuild, not a restart. See .context/architecture/deployment.md §2.
 
 # --- deps ------------------------------------------------------------------
 # Only the manifests, so this layer is reused until a dependency actually

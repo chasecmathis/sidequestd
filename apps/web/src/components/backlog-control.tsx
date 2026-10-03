@@ -17,9 +17,8 @@ import { useEffect, useState } from "react";
 
 import { Alert } from "@/components/ui/alert";
 import { inputStyles } from "@/components/ui/field";
-import { BACKLOG_ORDER, listName } from "@/lib/backlog";
-import { useBacklog } from "@/lib/backlog-store";
-import { useAuth } from "@/lib/auth";
+import { BACKLOG_ORDER, listName, useAuth, useBacklog } from "@sidequestd/core";
+
 import type { BacklogStatus, GameSummary } from "@sidequestd/api-types";
 
 /** The option that takes a game off the backlog. Not a status, so not a uuid-ish

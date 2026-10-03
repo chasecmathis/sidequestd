@@ -17,9 +17,8 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { Avatar } from "@/components/avatar";
-import { activityVerb } from "@/lib/backlog";
-import { timeAgo } from "@/lib/interactions";
-import { profilePath } from "@/lib/profile";
+import { activityVerb, profilePath, timeAgo } from "@sidequestd/core";
+
 import type { FeedActivityItem } from "@sidequestd/api-types";
 
 export function ActivityRow({ item }: { item: FeedActivityItem }) {

@@ -67,6 +67,14 @@ class Settings(BaseSettings):
     # --- Clients -----------------------------------------------------------
     web_app_url: str = "http://localhost:3000"
 
+    # The mobile client's URL scheme — `scheme` in `apps/mobile/app.json`, and
+    # the other end of the Steam callback. A phone that began the link gets sent
+    # to `sidequestd://settings/connections` instead of the web address, which is
+    # what lets the flow finish inside the app rather than in a browser the app
+    # cannot read the result of. Only ever used for a redirect whose destination
+    # was decided by the signed state, never from a request parameter.
+    native_app_scheme: str = "sidequestd"
+
     # --- Email (Mailpit in local dev) --------------------------------------
     smtp_host: str = "localhost"
     smtp_port: int = 1025
@@ -119,6 +127,18 @@ class Settings(BaseSettings):
     # somebody stops playing, not second to second, and the button is there for
     # "I just finished a session", not for polling.
     steam_sync_cooldown_minutes: int = 60
+
+    # --- Push notifications (SPEC §6.12) -----------------------------------
+    # The one switch worth having: on by default, because a deploy that has
+    # device tokens in its database has members expecting to hear from it, and
+    # off in the test suite, where an outbound HTTP call from a commit hook
+    # would make every producer's test depend on the network.
+    push_enabled: bool = True
+    push_api_url: str = "https://exp.host/--/api/v2/push/send"
+    # Optional, and only needed once "enhanced security" is switched on for the
+    # Expo project — until then the token itself is the credential, which is why
+    # `device_tokens` is the table it is.
+    expo_access_token: str | None = None
 
     # --- Rate limits (SPEC §9: auth and search endpoints are rate limited) --
     rate_limit_enabled: bool = True

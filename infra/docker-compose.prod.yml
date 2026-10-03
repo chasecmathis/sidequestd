@@ -8,8 +8,8 @@
 #     docker compose -f infra/docker-compose.prod.yml --env-file .env.production up -d --build
 #
 # One file feeds both halves of that: --env-file supplies the ${...} below, and
-# `env_file` on the api service hands the same file to the container. DEPLOY.md
-# has a template for it, and explains what each variable is and where to get it.
+# `env_file` on the api service hands the same file to the container.
+# .context/architecture/deployment.md §2 has a template for it, and explains what each variable is and where to get it.
 
 name: sidequestd-prod
 
@@ -19,7 +19,7 @@ services:
   # service and point DATABASE_URL at the managed instance when you have one.
   #
   # Note the migration runs `CREATE EXTENSION IF NOT EXISTS pg_trgm`, so the
-  # migrating role needs CREATE on the database — see DEPLOY.md.
+  # migrating role needs CREATE on the database — see .context/architecture/deployment.md §3.
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped

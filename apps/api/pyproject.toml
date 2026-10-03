@@ -2,7 +2,6 @@
 name = "sidequestd-api"
 version = "0.1.0"
 description = "Sidequestd shared backend API"
-readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.118",
