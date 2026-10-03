@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 
 # Production image for the Sidequestd web client. The build context is the
-# REPO ROOT, not apps/web — this is an npm workspace, so the lockfile and
-# packages/api-types both live above the app:
+# REPO ROOT, not apps/web — this is an npm workspace, so the lockfile and the
+# shared packages (api-types, core, design-tokens) all live above the app:
 #
 #     docker build -f apps/web/Dockerfile \
 #       --build-arg NEXT_PUBLIC_API_URL=https://api.sidequestd.app \
@@ -21,7 +21,12 @@ WORKDIR /srv
 
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/
+# Every workspace package the web imports. A package whose manifest is missing
+# here is never linked into node_modules, and the build then fails with
+# "Can't resolve '@sidequestd/…'".
 COPY packages/api-types/package.json packages/api-types/
+COPY packages/core/package.json packages/core/
+COPY packages/design-tokens/package.json packages/design-tokens/
 
 RUN --mount=type=cache,target=/root/.npm npm ci
 
@@ -35,6 +40,8 @@ WORKDIR /srv
 # replacing it.
 COPY --from=deps /srv ./
 COPY packages/api-types ./packages/api-types
+COPY packages/core ./packages/core
+COPY packages/design-tokens ./packages/design-tokens
 COPY apps/web ./apps/web
 
 ARG NEXT_PUBLIC_API_URL=http://localhost:8000

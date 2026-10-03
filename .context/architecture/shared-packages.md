@@ -3,7 +3,7 @@ type: system_architecture
 title: "Shared Packages"
 description: "What @sidequestd/core, api-types and design-tokens hold, the three platform seams, import rules, and how each package is generated or tested."
 tags: [architecture, packages, core, api-types, design-tokens, monorepo]
-timestamp: 2026-10-03T21:25:55Z
+timestamp: 2026-10-03T22:10:00Z
 resource: packages/
 ---
 
@@ -70,5 +70,14 @@ consumes the generated `apps/web/src/app/tokens.generated.css`, and native
 imports the objects directly. Regenerate with `gen:tokens` and `gen:brand`; the
 `tokens:check` and `brand:check` lint steps fail on drift. See
 [Local development](development.md#regenerating-generated-files).
+
+## Adding a workspace package
+
+When `apps/web` starts importing a new package under `packages/`, add it to
+`apps/web/Dockerfile` in **two** places: its `package.json` in the `deps`
+stage (so `npm ci` links it) and its source in the `builder` stage. Local
+builds will still pass without this, because the whole repo is on disk; only
+the image build fails. Mobile needs a `file:` dependency in
+`apps/mobile/package.json` instead.
 
 Related: [Conventions](conventions.md#shared-client-code) · [Mobile client](mobile-client.md)

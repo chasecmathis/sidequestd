@@ -3,7 +3,7 @@ type: decision_log
 title: "Architecture and Domain Change Log"
 description: "Newest-first log of changes to architecture, schema, API contracts and domain rules."
 tags: [log, decisions, changelog]
-timestamp: 2026-10-03T21:25:55Z
+timestamp: 2026-10-03T22:10:00Z
 resource: ./
 ---
 
@@ -23,6 +23,21 @@ Entry template:
 ```
 
 ---
+
+## 2026-10-03 — Web Docker image copies every shared package
+
+- **Change:** `apps/web/Dockerfile` now copies `packages/core` and
+  `packages/design-tokens` (both the manifest for `npm ci` and the source),
+  not only `packages/api-types`.
+- **Why:** commit `77b2f00` moved `apps/web/src/lib` into `packages/core`
+  (71 web files import it), but the Dockerfile was never updated. The image
+  build failed with `Can't resolve '@sidequestd/core'`. It works locally only
+  because the whole repo is on disk. **When adding a workspace package that
+  the web imports, add both COPY lines.**
+- **Verified:** `docker build -f apps/web/Dockerfile .` succeeds, and the
+  container serves `/` and `/discover` with 200.
+- **Docs:** this entry; `architecture/shared-packages.md` (new "Adding a
+  workspace package" section).
 
 ## 2026-10-03 — All documentation markdown moved into the bundle
 
