@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Search as both clients run it (SPEC §6.6): debounced, newest term wins,
  * paged by cursor.
