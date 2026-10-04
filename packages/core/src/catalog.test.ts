@@ -58,6 +58,10 @@ describe("searchQuery", () => {
   it("targets the user endpoint and carries a cursor", () => {
     expect(searchQuery("users", "ripley", "next")).toBe("/search/users?q=ripley&cursor=next");
   });
+
+  it("carries a page size when one is asked for", () => {
+    expect(searchQuery("games", "hades", null, 6)).toBe("/search/games?q=hades&limit=6");
+  });
 });
 
 describe("toggleFacet", () => {

@@ -3,7 +3,7 @@ type: decision_log
 title: "Architecture and Domain Change Log"
 description: "Newest-first log of changes to architecture, schema, API contracts and domain rules."
 tags: [log, decisions, changelog]
-timestamp: 2026-10-03T22:10:00Z
+timestamp: 2026-10-04T03:26:35Z
 resource: ./
 ---
 
@@ -23,6 +23,34 @@ Entry template:
 ```
 
 ---
+
+## 2026-10-04 — Search relevance: normalized keys, aliases, follow-graph ranking
+
+- **Change:**
+  - Migration `5d2e8b4c9a17` adds `unaccent`, an `IMMUTABLE`
+    `search_normalize()`, STORED generated `*_key`/`*_compact` columns on
+    `games` and `users` (with trigram and prefix indexes, replacing the three
+    raw-column trigram indexes), and a new `game_aliases` table filled from
+    IGDB `alternative_names`.
+  - `services/search.py` now matches on all words, the compact form or a fuzzy
+    match, and falls back to a prefix match for queries under 3 characters.
+    Games rank by text plus popularity; users rank by text plus a boost from
+    accepted follows.
+  - `packages/core` gains `useSearch`, now used by both Search screens and all
+    three game pickers.
+  - No API contract change.
+- **Why:** substring-only matching missed typos, word order, accents,
+  punctuation and abbreviations, ignored popularity on a 350k-game catalog,
+  and ignored the social graph. The client logic existed in five copies.
+- **Rulings:** work left uncommitted on branch `search-relevance` for review;
+  `test_search_results_page` moved from `q="a"` to `q="re"` (one-character
+  queries are prefix-only by design); the no-boost user tests assign roles by
+  id order, so a wrongful boost fails them deterministically.
+- **Docs:** `domains/discovery.md`, `models/catalog.md`,
+  `models/users-and-auth.md`, `models/index.md`,
+  `architecture/shared-packages.md`, `architecture/deployment.md`,
+  `product/spec.md` §6.6, `product/roadmap.md`, and
+  `decisions/2026-10-search-relevance{,-plan}.md`.
 
 ## 2026-10-03 — Web Docker image copies every shared package
 

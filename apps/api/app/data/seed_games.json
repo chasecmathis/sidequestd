@@ -1,11 +1,12 @@
 {
-  "$comment": "Offline catalog fixture so the games slice runs with no IGDB account (SPEC §2). This is development data, not a mirror of IGDB: `external_id` records the IGDB game id where it is known, so a later live sync updates the row in place rather than duplicating it, but the ids and metadata here are best-effort and `--igdb` is the authoritative source. Cover URLs point at IGDB's public CDN and were checked to show the right game; entries whose cover could not be verified carry null, which the clients render as a 'no cover art' card. `total_rating` / `total_rating_count` are IGDB's blended score and how many ratings it is over; they are approximations here, and a few entries carry none at all so the 'no upstream score' state is reachable offline. `steam_appid` is the game's Steam store id, checked against Steam's own appdetails endpoint so each one names the game it sits on; it is what makes `game_external_ids` non-empty on a seeded database, and therefore what makes both the store link on the detail page and the verified-playtime badge reachable without a live IGDB import. Five entries deliberately carry none — Fortnite, Minecraft and the three Nintendo exclusives are genuinely not sold on Steam — which keeps the 'no store link' state reachable too.",
+  "$comment": "Offline catalog fixture so the games slice runs with no IGDB account (SPEC §2). This is development data, not a mirror of IGDB: `external_id` records the IGDB game id where it is known, so a later live sync updates the row in place rather than duplicating it, but the ids and metadata here are best-effort and `--igdb` is the authoritative source. Cover URLs point at IGDB's public CDN and were checked to show the right game; entries whose cover could not be verified carry null, which the clients render as a 'no cover art' card. `total_rating` / `total_rating_count` are IGDB's blended score and how many ratings it is over; they are approximations here, and a few entries carry none at all so the 'no upstream score' state is reachable offline. `steam_appid` is the game's Steam store id, checked against Steam's own appdetails endpoint so each one names the game it sits on; it is what makes `game_external_ids` non-empty on a seeded database, and therefore what makes both the store link on the detail page and the verified-playtime badge reachable without a live IGDB import. Five entries deliberately carry none — Fortnite, Minecraft and the three Nintendo exclusives are genuinely not sold on Steam — which keeps the 'no store link' state reachable too. `aliases` are the other names a game goes by, as IGDB's `alternative_names` supplies them; a handful are included so alias search (\"GTA V\", \"BotW\") works offline.",
   "source": "seed",
   "games": [
     {
       "external_id": "1942",
       "steam_appid": "292030",
       "title": "The Witcher 3: Wild Hunt",
+      "aliases": ["TW3"],
       "summary": "A story-driven open world RPG set in a visually stunning fantasy universe, following monster hunter Geralt of Rivia as he searches for his adopted daughter.",
       "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co1wyy.jpg",
       "release_date": "2015-05-19",
@@ -66,6 +67,7 @@
     {
       "external_id": "7346",
       "title": "The Legend of Zelda: Breath of the Wild",
+      "aliases": ["BotW", "Zelda BotW"],
       "summary": "Link wakes after a hundred-year sleep into a Hyrule that has forgotten him, in an open-air adventure built around experimentation.",
       "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co3p2d.jpg",
       "release_date": "2017-03-03",
@@ -126,6 +128,7 @@
       "external_id": "1020",
       "steam_appid": "271590",
       "title": "Grand Theft Auto V",
+      "aliases": ["GTA V", "GTA 5"],
       "summary": "Three very different criminals team up for a series of heists across the city of Los Santos and Blaine County.",
       "cover_url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co2lbd.jpg",
       "release_date": "2013-09-17",

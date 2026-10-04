@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.search_keys import search_compact, search_key
 
 game_genres = sa.Table(
     "game_genres",
@@ -63,6 +64,9 @@ class Game(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     external_source: Mapped[str | None] = mapped_column(sa.String(32))
 
     title: Mapped[str] = mapped_column(sa.String(300), index=True)
+    # What title search matches against; see app.models.search_keys.
+    search_key: Mapped[str] = mapped_column(sa.Text, search_key("title"), deferred=True)
+    search_compact: Mapped[str] = mapped_column(sa.Text, search_compact("title"), deferred=True)
     slug: Mapped[str] = mapped_column(sa.String(320), unique=True)
     summary: Mapped[str | None] = mapped_column(sa.Text)
     cover_url: Mapped[str | None] = mapped_column(sa.Text)
@@ -113,14 +117,26 @@ class Game(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
     __table_args__ = (
-        # Title search (SPEC §6.6) matches anywhere in the string, which the plain
-        # btree on `title` cannot serve. A trigram GIN index makes both the
-        # ILIKE '%…%' filter and the similarity() ranking indexable.
+        # Title search (SPEC §6.6) matches anywhere in the normalized key, which
+        # a plain btree cannot serve: the trigram GIN indexes make the LIKE,
+        # fuzzy `<%` and similarity() halves of `services.search` indexable. A
+        # query too short to have a trigram uses the prefix btree instead.
         sa.Index(
-            "ix_games_title_trgm",
-            "title",
+            "ix_games_search_key_trgm",
+            "search_key",
             postgresql_using="gin",
-            postgresql_ops={"title": "gin_trgm_ops"},
+            postgresql_ops={"search_key": "gin_trgm_ops"},
+        ),
+        sa.Index(
+            "ix_games_search_compact_trgm",
+            "search_compact",
+            postgresql_using="gin",
+            postgresql_ops={"search_compact": "gin_trgm_ops"},
+        ),
+        sa.Index(
+            "ix_games_search_key_prefix",
+            "search_key",
+            postgresql_ops={"search_key": "text_pattern_ops"},
         ),
         # Discover's "new releases" asks for the twelve highest dates at or below
         # today on every page load. Partial because the undated rows can never
@@ -172,6 +188,39 @@ class GameExternalId(Base):
     )
 
     game: Mapped[Game] = relationship()
+
+
+class GameAlias(UUIDPrimaryKeyMixin, Base):
+    """Another name a game goes by — "GTA V", "BotW" — mirrored from IGDB's
+    `alternative_names` so search finds what people actually type (SPEC §6.6).
+
+    Written only by the import (`games_import._write_aliases`), like
+    `game_external_ids`. Unique per game on the normalized key, so "GTA V" and
+    "gta v" are one row; the unique index also serves lookups by `game_id`.
+    """
+
+    __tablename__ = "game_aliases"
+
+    game_id: Mapped[uuid.UUID] = mapped_column(sa.ForeignKey("games.id", ondelete="CASCADE"))
+    alias: Mapped[str] = mapped_column(sa.String(300))
+    search_key: Mapped[str] = mapped_column(sa.Text, search_key("alias"), deferred=True)
+    search_compact: Mapped[str] = mapped_column(sa.Text, search_compact("alias"), deferred=True)
+
+    __table_args__ = (
+        sa.UniqueConstraint("game_id", "search_key"),
+        sa.Index(
+            "ix_game_aliases_search_key_trgm",
+            "search_key",
+            postgresql_using="gin",
+            postgresql_ops={"search_key": "gin_trgm_ops"},
+        ),
+        sa.Index(
+            "ix_game_aliases_search_compact_trgm",
+            "search_compact",
+            postgresql_using="gin",
+            postgresql_ops={"search_compact": "gin_trgm_ops"},
+        ),
+    )
 
 
 class TrendingScore(Base):

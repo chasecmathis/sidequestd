@@ -3,7 +3,7 @@ type: schema_definition
 title: "Users and Auth Tables"
 description: "users, favorite_games, refresh_tokens and password_reset_tokens: columns, constraints and invariants."
 tags: [models, users, auth, tokens, favorites]
-timestamp: 2026-10-03T00:00:00Z
+timestamp: 2026-10-04T03:26:35Z
 resource: apps/api/app/models/user.py
 ---
 
@@ -26,7 +26,11 @@ resource: apps/api/app/models/user.py
 | `created_at`, `updated_at` | timestamptz | DB clock |
 
 Checks: `username_is_lowercase`, `email_is_lowercase`, `username_min_length`.
-GIN trigram indexes on `username` and `display_name` serve user search.
+User search matches the STORED generated columns `username_key`,
+`username_compact`, `display_name_key` and `display_name_compact` (from
+`search_normalize`; deferred on the model). Each has a GIN trigram index, and
+the two `*_key` columns also have a `text_pattern_ops` prefix index for short
+queries (`5d2e8b4c9a17`).
 
 ## `favorite_games`
 

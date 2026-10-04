@@ -9,7 +9,7 @@
  */
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import { Search as SearchIcon } from "lucide-react";
 
@@ -22,18 +22,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { inputStyles } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { GameGridSkeleton, ListSkeleton } from "@/components/ui/skeleton";
-import { profilePath, searchQuery, useAuth } from "@sidequestd/core";
+import { noSearchMatches, profilePath, SEARCH_PROMPTS, useSearch } from "@sidequestd/core";
 
-import type {
-  GamePage,
-  GameSummary,
-  UserSearchPage,
-  UserSearchResult,
-} from "@sidequestd/api-types";
+import type { UserSearchResult } from "@sidequestd/api-types";
 
 type Tab = "games" | "users";
-
-const DEBOUNCE_MS = 250;
 
 function UserRow({ user }: { user: UserSearchResult }) {
   return (
@@ -75,111 +68,14 @@ function UserRow({ user }: { user: UserSearchResult }) {
 }
 
 export default function SearchPage() {
-  const { authedRequest } = useAuth();
-
   const [tab, setTab] = useState<Tab>("games");
   const [term, setTerm] = useState("");
-  const [games, setGames] = useState<GameSummary[]>([]);
-  const [users, setUsers] = useState<UserSearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // One cursor rather than one per tab: this effect already re-runs when `tab`
-  // changes, so switching tabs refetches page one and resets the cursor with it.
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
+  // One search per tab with only the open one enabled, so each keeps its exact
+  // result type, and switching tabs fetches page one of the other kind.
+  const games = useSearch("games", term, { enabled: tab === "games" });
+  const users = useSearch("users", term, { enabled: tab === "users" });
+  const active = tab === "games" ? games : users;
 
-  // What the reader is looking at right now, readable from inside an awaited
-  // request. See `loadMore`.
-  const latest = useRef({ term, tab });
-  latest.current = { term, tab };
-
-  useEffect(() => {
-    const query = term.trim();
-    if (!query) {
-      setGames([]);
-      setUsers([]);
-      setNextCursor(null);
-      setError(null);
-      return;
-    }
-
-    let cancelled = false;
-    setSearching(true);
-    // Debounced: one request per pause, not one per keystroke — search is rate
-    // limited server-side (SPEC §9).
-    const timer = setTimeout(() => {
-      const request =
-        tab === "games"
-          ? authedRequest<GamePage>(searchQuery("games", query)).then((page) => {
-              if (cancelled) return;
-              setGames(page.items);
-              setNextCursor(page.next_cursor);
-            })
-          : authedRequest<UserSearchPage>(searchQuery("users", query)).then((page) => {
-              if (cancelled) return;
-              setUsers(page.items);
-              setNextCursor(page.next_cursor);
-            });
-
-      request
-        .then(() => {
-          if (!cancelled) setError(null);
-        })
-        .catch((cause: unknown) => {
-          if (!cancelled) setError(cause instanceof Error ? cause.message : "Search failed.");
-        })
-        .finally(() => {
-          if (!cancelled) setSearching(false);
-        });
-    }, DEBOUNCE_MS);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [authedRequest, term, tab]);
-
-  /**
-   * The next page of whichever tab is open.
-   *
-   * The stale check is the reason this is not a bare append. A page can still be
-   * in flight when the reader types another character, and the debounced effect
-   * above has no idea this request exists — without the guard, results for "ma"
-   * would land underneath results for "mario".
-   *
-   * It reads the term and tab off a ref rather than off the closure: the closure
-   * captured them when `loadMore` was built, so comparing against those would be
-   * comparing a value to itself. The ref is what the component is showing *now*,
-   * which is the thing the response has to still agree with.
-   */
-  const loadMore = useCallback(async () => {
-    if (!nextCursor) return;
-
-    const query = term.trim();
-    const forTab = tab;
-    const isStale = () => latest.current.term.trim() !== query || latest.current.tab !== forTab;
-
-    setLoadingMore(true);
-    try {
-      if (forTab === "games") {
-        const page = await authedRequest<GamePage>(searchQuery("games", query, nextCursor));
-        if (isStale()) return;
-        setGames((current) => [...current, ...page.items]);
-        setNextCursor(page.next_cursor);
-      } else {
-        const page = await authedRequest<UserSearchPage>(searchQuery("users", query, nextCursor));
-        if (isStale()) return;
-        setUsers((current) => [...current, ...page.items]);
-        setNextCursor(page.next_cursor);
-      }
-    } catch (cause) {
-      if (!isStale()) setError(cause instanceof Error ? cause.message : "Search failed.");
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [authedRequest, latest, nextCursor, tab, term]);
-
-  const results = tab === "games" ? games : users;
   const hasQuery = term.trim().length > 0;
 
   return (
@@ -222,37 +118,32 @@ export default function SearchPage() {
         ))}
       </div>
 
-      {error ? (
+      {active.error ? (
         <Alert tone="error" className="mt-6">
-          {error}
+          {active.error}
         </Alert>
       ) : null}
 
       <div className="mt-8">
         {!hasQuery ? (
-          <EmptyState
-            icon={SearchIcon}
-            description={
-              tab === "games" ? "Search the catalog by title." : "Search by handle or display name."
-            }
-          />
-        ) : results.length === 0 ? (
-          searching ? (
+          <EmptyState icon={SearchIcon} description={SEARCH_PROMPTS[tab]} />
+        ) : active.items.length === 0 ? (
+          active.searching ? (
             tab === "games" ? (
               <GameGridSkeleton label="Searching games" />
             ) : (
               <ListSkeleton label="Searching people" />
             )
-          ) : (
-            <EmptyState description={`No ${tab} match “${term.trim()}”.`} />
+          ) : active.error ? null : (
+            <EmptyState description={noSearchMatches(tab, term)} />
           )
         ) : tab === "games" ? (
           // SPEC §6.9 names Search as one of the three places a game joins a
           // list, which is the whole point of finding it here.
-          <GameGrid games={games} action={(game) => <BacklogControl game={game} />} />
+          <GameGrid games={games.items} action={(game) => <BacklogControl game={game} />} />
         ) : (
           <ul className="space-y-2">
-            {users.map((user) => (
+            {users.items.map((user) => (
               <UserRow key={user.id} user={user} />
             ))}
           </ul>
@@ -260,17 +151,17 @@ export default function SearchPage() {
       </div>
 
       {/* Only when there is genuinely another page. Results come back ranked by
-          trigram similarity, so the honest thing to say is that narrowing the
+          relevance, so the honest thing to say is that narrowing the
           term beats paging through a tail that is already less relevant than
           what is on screen — the button is there for the reader who wants it
           anyway. Same control as Discover's Browse, so the two behave alike. */}
-      {nextCursor ? (
+      {active.hasMore ? (
         <div className="mt-8 flex flex-col items-center gap-3">
           <p className="type-eyebrow text-center text-fg-faint">
             Ranked by relevance — keep typing to narrow
           </p>
-          <Button onClick={() => void loadMore()} disabled={loadingMore}>
-            {loadingMore ? "Loading…" : "Load more"}
+          <Button onClick={() => void active.loadMore()} disabled={active.loadingMore}>
+            {active.loadingMore ? "Loading…" : "Load more"}
           </Button>
         </div>
       ) : null}

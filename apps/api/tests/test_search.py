@@ -18,6 +18,7 @@ GAMES = "/api/v1/search/games"
 USERS = "/api/v1/search/users"
 
 MakeUser = Callable[..., Awaitable[User]]
+AuthHeaders = Callable[[User], dict[str, str]]
 
 
 # --- Game search -----------------------------------------------------------
@@ -78,14 +79,21 @@ async def test_an_empty_query_is_rejected(client: AsyncClient) -> None:
 
 
 async def test_search_results_page(client: AsyncClient, catalog: list[Game]) -> None:
-    first = (await client.get(GAMES, params={"q": "a", "limit": 3})).json()
+    """ "re" is a prefix of two seed titles (Returnal, Red Dead Redemption 2).
+
+    A query this short matches title prefixes only — see
+    `test_search_relevance.py` — so it is two results, a page each.
+    """
+    first = (await client.get(GAMES, params={"q": "re", "limit": 1})).json()
     assert first["next_cursor"]
 
     second = (
-        await client.get(GAMES, params={"q": "a", "limit": 3, "cursor": first["next_cursor"]})
+        await client.get(GAMES, params={"q": "re", "limit": 1, "cursor": first["next_cursor"]})
     ).json()
 
-    assert not {card["id"] for card in first["items"]} & {card["id"] for card in second["items"]}
+    assert len(first["items"]) == len(second["items"]) == 1
+    assert first["items"][0]["id"] != second["items"][0]["id"]
+    assert second["next_cursor"] is None
 
 
 # --- User search -----------------------------------------------------------
@@ -124,6 +132,160 @@ async def test_deactivated_accounts_are_not_searchable(
     response = await client.get(USERS, params={"q": "burke"})
 
     assert response.json()["items"] == []
+
+
+async def _usernames(
+    client: AsyncClient, query: str, headers: dict[str, str] | None = None
+) -> list[str]:
+    response = await client.get(USERS, params={"q": query}, headers=headers or {})
+    assert response.status_code == 200, response.text
+    return [hit["username"] for hit in response.json()["items"]]
+
+
+async def test_a_leading_at_sign_is_ignored(client: AsyncClient, make_user: MakeUser) -> None:
+    """People paste handles the way the app prints them."""
+    await make_user("ripley")
+
+    assert await _usernames(client, "@ripley") == ["ripley"]
+
+
+async def test_a_bare_at_sign_finds_nobody(client: AsyncClient, make_user: MakeUser) -> None:
+    await make_user("ripley")
+
+    assert await _usernames(client, "@") == []
+
+
+@pytest.mark.parametrize("query", ["ripley88", "ripley 88", "ripley_88"])
+async def test_punctuation_in_a_handle_is_optional(
+    client: AsyncClient, make_user: MakeUser, query: str
+) -> None:
+    await make_user("ripley_88")
+
+    assert await _usernames(client, query) == ["ripley_88"]
+
+
+async def test_display_names_match_without_their_accents(
+    client: AsyncClient, make_user: MakeUser
+) -> None:
+    await make_user("wash", display_name="Zoë Washburne")
+
+    assert await _usernames(client, "zoe") == ["wash"]
+
+
+@pytest.mark.parametrize("query", ["山田", "山田太郎"])
+async def test_non_latin_display_names_stay_searchable(
+    client: AsyncClient, make_user: MakeUser, query: str
+) -> None:
+    await make_user("yamada", display_name="山田 太郎")
+
+    assert await _usernames(client, query) == ["yamada"]
+
+
+# --- The follow graph ------------------------------------------------------
+#
+# Candidates here share a text score ("kane" against kane_a … kane_e), so the
+# follow graph is the only thing that can order them. Tests that expect *no*
+# boost compare against the signed-out order, which is ranked by text alone.
+
+
+async def _follow(
+    db: AsyncSession,
+    follower: User,
+    followee: User,
+    status: FollowStatus = FollowStatus.ACCEPTED,
+) -> None:
+    db.add(Follow(follower_id=follower.id, followee_id=followee.id, status=status))
+    await db.flush()
+
+
+async def test_people_closer_in_the_follow_graph_rank_first(
+    client: AsyncClient, db: AsyncSession, make_user: MakeUser, auth_headers: AuthHeaders
+) -> None:
+    viewer = await make_user("viewer")
+    await make_user("kane_a")  # a stranger
+    friend_of_friend = await make_user("kane_b")
+    follower = await make_user("kane_c")
+    followed = await make_user("kane_d")
+    mutual = await make_user("kane_e")
+    middle = await make_user("lambert")
+
+    await _follow(db, viewer, middle)
+    await _follow(db, middle, friend_of_friend)
+    await _follow(db, follower, viewer)
+    await _follow(db, viewer, followed)
+    await _follow(db, viewer, mutual)
+    await _follow(db, mutual, viewer)
+
+    assert await _usernames(client, "kane", auth_headers(viewer)) == [
+        "kane_e",
+        "kane_d",
+        "kane_c",
+        "kane_b",
+        "kane_a",
+    ]
+
+
+async def _kanes(make_user: MakeUser, count: int) -> list[User]:
+    """`count` users with equal text scores, in the order a signed-out search
+    ranks them: ties break on id, descending.
+
+    So a test can give the *first* the stranger's role and the rest roles that
+    must earn nothing — any boost they wrongly earn lifts one above the
+    stranger, which changes the order every time rather than when the random
+    ids happen to fall that way.
+    """
+    users = [await make_user(f"kane_{letter}") for letter in "abcdefgh"[:count]]
+    return sorted(users, key=lambda user: user.id, reverse=True)
+
+
+async def test_a_pending_follow_counts_for_nothing(
+    client: AsyncClient, db: AsyncSession, make_user: MakeUser, auth_headers: AuthHeaders
+) -> None:
+    """SPEC §6.7: approval, not the request, is what connects two people."""
+    viewer = await make_user("viewer")
+    kanes = await _kanes(make_user, 4)
+    _, requested, via_requested, requester = kanes
+    middle = await make_user("lambert")
+
+    await _follow(db, viewer, requested, FollowStatus.PENDING)
+    await _follow(db, viewer, middle, FollowStatus.PENDING)
+    await _follow(db, middle, via_requested)
+    await _follow(db, requester, viewer, FollowStatus.PENDING)
+
+    expected = [user.username for user in kanes]
+    assert await _usernames(client, "kane") == expected
+    assert await _usernames(client, "kane", auth_headers(viewer)) == expected
+
+
+async def test_no_path_runs_through_a_private_account_the_viewer_does_not_follow(
+    client: AsyncClient, db: AsyncSession, make_user: MakeUser, auth_headers: AuthHeaders
+) -> None:
+    """Its following list is gated, so ranking by it would leak what it gates."""
+    viewer = await make_user("viewer")
+    kanes = await _kanes(make_user, 2)
+    private = await make_user("lambert", is_private=True)
+
+    await _follow(db, private, kanes[1])
+    await _follow(db, viewer, private, FollowStatus.PENDING)
+
+    assert await _usernames(client, "kane", auth_headers(viewer)) == [
+        user.username for user in kanes
+    ]
+
+
+async def test_the_viewer_gets_no_boost_from_a_path_back_to_themselves(
+    client: AsyncClient, db: AsyncSession, make_user: MakeUser, auth_headers: AuthHeaders
+) -> None:
+    kanes = await _kanes(make_user, 2)
+    viewer = kanes[1]
+    friend = await make_user("lambert")
+
+    await _follow(db, viewer, friend)
+    await _follow(db, friend, viewer)
+
+    assert await _usernames(client, "kane", auth_headers(viewer)) == [
+        user.username for user in kanes
+    ]
 
 
 # --- Privacy gating (SPEC §6.7) --------------------------------------------

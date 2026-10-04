@@ -5,8 +5,8 @@
  * unless the viewer is approved (SPEC §6.7), and the row says so rather than
  * showing a zero that would read as "no reviews".
  *
- * Debounced at 250ms, as on the web — one request per pause rather than one per
- * keystroke, because search is rate limited server-side (SPEC §9). That matters
+ * Debounced by `useSearch`, as on the web — one request per pause rather than one
+ * per keystroke, because search is rate limited server-side (SPEC §9). That matters
  * more from a phone than from a desktop: a thumb typing "elden ring" on a
  * flaky connection is ten requests the reader is paying for.
  *
@@ -14,16 +14,11 @@
  * somebody does before they have an account.
  */
 import { Search as SearchIcon } from "lucide-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 
-import { searchQuery, useAuth } from "@sidequestd/core";
-import type {
-  GamePage,
-  GameSummary,
-  UserSearchPage,
-  UserSearchResult,
-} from "@sidequestd/api-types";
+import { noSearchMatches, SEARCH_PROMPTS, useSearch } from "@sidequestd/core";
+import type { UserSearchResult } from "@sidequestd/api-types";
 
 import { BacklogControl } from "@/components/backlog-control";
 import { GameGrid } from "@/components/game-card";
@@ -42,8 +37,6 @@ import { open } from "@/lib/navigate";
 import { useStyles, type Tokens } from "@/theme";
 
 type Tab = "games" | "users";
-
-const DEBOUNCE_MS = 250;
 
 const TABS: SegmentOption<Tab>[] = [
   { value: "games", label: "Games" },
@@ -71,109 +64,14 @@ function resultMeta(user: UserSearchResult) {
 
 export default function SearchScreen() {
   const styles = useStyles(make);
-  const { authedRequest } = useAuth();
-
   const [tab, setTab] = useState<Tab>("games");
   const [term, setTerm] = useState("");
-  const [games, setGames] = useState<GameSummary[]>([]);
-  const [users, setUsers] = useState<UserSearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // One cursor rather than one per tab: the effect below already re-runs when
-  // `tab` changes, so switching tabs refetches page one and resets it with them.
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
+  // One search per tab with only the open one enabled, so each keeps its exact
+  // result type, and switching tabs fetches page one of the other kind.
+  const games = useSearch("games", term, { enabled: tab === "games" });
+  const users = useSearch("users", term, { enabled: tab === "users" });
+  const active = tab === "games" ? games : users;
 
-  // What the reader is looking at right now, readable from inside an awaited
-  // request. See `loadMore`.
-  const latest = useRef({ term, tab });
-  latest.current = { term, tab };
-
-  useEffect(() => {
-    const query = term.trim();
-    if (!query) {
-      setGames([]);
-      setUsers([]);
-      setNextCursor(null);
-      setError(null);
-      return;
-    }
-
-    let cancelled = false;
-    setSearching(true);
-    const timer = setTimeout(() => {
-      const request =
-        tab === "games"
-          ? authedRequest<GamePage>(searchQuery("games", query)).then((page) => {
-              if (cancelled) return;
-              setGames(page.items);
-              setNextCursor(page.next_cursor);
-            })
-          : authedRequest<UserSearchPage>(searchQuery("users", query)).then((page) => {
-              if (cancelled) return;
-              setUsers(page.items);
-              setNextCursor(page.next_cursor);
-            });
-
-      request
-        .then(() => {
-          if (!cancelled) setError(null);
-        })
-        .catch((cause: unknown) => {
-          if (!cancelled) setError(cause instanceof Error ? cause.message : "Search failed.");
-        })
-        .finally(() => {
-          if (!cancelled) setSearching(false);
-        });
-    }, DEBOUNCE_MS);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [authedRequest, term, tab]);
-
-  /**
-   * The next page of whichever tab is open.
-   *
-   * The stale check is the reason this is not a bare append. A page can still be
-   * in flight when the reader types another character, and the debounced effect
-   * above has no idea this request exists — without the guard, results for "ma"
-   * would land underneath results for "mario".
-   *
-   * It reads the term and tab off a ref rather than off the closure: the closure
-   * captured them when `loadMore` was built, so comparing against those would be
-   * comparing a value to itself. The ref is what the screen is showing *now*,
-   * which is the thing the response has to still agree with.
-   */
-  const loadMore = useCallback(async () => {
-    if (!nextCursor) return;
-
-    const query = term.trim();
-    const forTab = tab;
-    const isStale = () => latest.current.term.trim() !== query || latest.current.tab !== forTab;
-
-    setLoadingMore(true);
-    try {
-      if (forTab === "games") {
-        const page = await authedRequest<GamePage>(searchQuery("games", query, nextCursor));
-        if (isStale()) return;
-        setGames((current) => [...current, ...page.items]);
-        setNextCursor(page.next_cursor);
-      } else {
-        const page = await authedRequest<UserSearchPage>(searchQuery("users", query, nextCursor));
-        if (isStale()) return;
-        setUsers((current) => [...current, ...page.items]);
-        setNextCursor(page.next_cursor);
-      }
-    } catch (cause) {
-      if (!isStale()) setError(cause instanceof Error ? cause.message : "Search failed.");
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [authedRequest, nextCursor, tab, term]);
-
-  const results = tab === "games" ? games : users;
   const hasQuery = term.trim().length > 0;
 
   return (
@@ -193,28 +91,23 @@ export default function SearchScreen() {
 
       <Segmented label="Search type" options={TABS} value={tab} onChange={setTab} />
 
-      {error ? <Alert>{error}</Alert> : null}
+      {active.error ? <Alert>{active.error}</Alert> : null}
 
       {!hasQuery ? (
-        <EmptyState
-          icon={SearchIcon}
-          description={
-            tab === "games" ? "Search the catalog by title." : "Search by handle or display name."
-          }
-        />
-      ) : results.length === 0 ? (
-        searching ? (
+        <EmptyState icon={SearchIcon} description={SEARCH_PROMPTS[tab]} />
+      ) : active.items.length === 0 ? (
+        active.searching ? (
           tab === "games" ? (
             <GameGridSkeleton label="Searching games" />
           ) : (
             <ListSkeleton label="Searching people" />
           )
-        ) : (
-          <EmptyState description={`No ${tab} match “${term.trim()}”.`} />
+        ) : active.error ? null : (
+          <EmptyState description={noSearchMatches(tab, term)} />
         )
       ) : tab === "games" ? (
         <GameGrid
-          games={games}
+          games={games.items}
           onOpen={(game) => open(`/games/${game.id}`)}
           // SPEC §6.9's first entry point: search is where somebody arrives
           // knowing what they want, and the list they want it on is the thing
@@ -225,29 +118,29 @@ export default function SearchScreen() {
         />
       ) : (
         <UserList label="People results">
-          {users.map((user, index) => (
+          {users.items.map((user, index) => (
             <UserRow
               key={user.id}
               user={user}
               meta={resultMeta(user)}
-              last={index === users.length - 1}
+              last={index === users.items.length - 1}
             />
           ))}
         </UserList>
       )}
 
       {/* Only when there is genuinely another page. Results come back ranked by
-          trigram similarity, so the honest thing to say is that narrowing the
+          relevance, so the honest thing to say is that narrowing the
           term beats paging through a tail that is already less relevant than
           what is on screen — the button is there for the reader who wants it
           anyway. Same control as Discover's Browse, so the two behave alike. */}
-      {nextCursor ? (
+      {active.hasMore ? (
         <View style={styles.more}>
           <EyebrowText tone="faint" style={styles.hint}>
             Ranked by relevance — keep typing to narrow
           </EyebrowText>
-          <Button disabled={loadingMore} onPress={() => void loadMore()}>
-            {loadingMore ? "Loading…" : "Load more"}
+          <Button disabled={active.loadingMore} onPress={() => void active.loadMore()}>
+            {active.loadingMore ? "Loading…" : "Load more"}
           </Button>
         </View>
       ) : null}

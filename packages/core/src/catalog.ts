@@ -37,9 +37,15 @@ export function browseQuery({ genres, platforms, sort, cursor, limit }: BrowseFi
   return query ? `/games?${query}` : "/games";
 }
 
-export function searchQuery(kind: "games" | "users", term: string, cursor?: string | null): string {
+export function searchQuery(
+  kind: "games" | "users",
+  term: string,
+  cursor?: string | null,
+  limit?: number,
+): string {
   const params = new URLSearchParams({ q: term });
   if (cursor) params.set("cursor", cursor);
+  if (limit) params.set("limit", String(limit));
   return `/search/${kind}?${params.toString()}`;
 }
 

@@ -3,7 +3,7 @@ type: index
 title: "Models"
 description: "Map of database tables, enums, the wire contract, and the Alembic migration chain."
 tags: [index, models, schema, database, migrations]
-timestamp: 2026-10-03T00:00:00Z
+timestamp: 2026-10-04T03:26:35Z
 resource: apps/api/app/models/
 ---
 
@@ -18,7 +18,7 @@ timestamps and constraint naming are in
 | Document | Tables / types |
 | --- | --- |
 | [Users and auth](users-and-auth.md) | `users`, `favorite_games`, `refresh_tokens`, `password_reset_tokens` |
-| [Catalog](catalog.md) | `games`, `genres`, `platforms`, `game_genres`, `game_platforms`, `game_external_ids`, `trending_scores` |
+| [Catalog](catalog.md) | `games`, `genres`, `platforms`, `game_genres`, `game_platforms`, `game_external_ids`, `game_aliases`, `trending_scores` |
 | [Reviews](reviews.md) | `reviews`, `review_media`, `likes`, `comments` |
 | [Social and backlog](social-and-backlog.md) | `follows`, `backlog_items` |
 | [Notifications and devices](notifications-and-devices.md) | `notifications`, `device_tokens` |
@@ -38,7 +38,8 @@ timestamps and constraint naming are in
 6. `c58e0b31a7d4` partial descending index on `games.release_date`
 7. `e2b7c41d9a83` `game_external_ids`
 8. `f4a1c07e3b52` platform account links and synced libraries
-9. `a91f6c30d7b2` push device tokens ← **head**
+9. `a91f6c30d7b2` push device tokens
+10. `5d2e8b4c9a17` search relevance: `unaccent`, `search_normalize()`, generated search keys on `games` and `users`, `game_aliases` ← **head**
 
 Every schema change needs a new revision. Add it to this list and to the
 relevant model file, and log it in [log.md](../log.md).

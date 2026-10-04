@@ -36,14 +36,12 @@ import {
   MAX_FAVORITE_GAMES,
   moveFavorite,
   releaseYearLabel,
-  searchQuery,
   slotLabel,
   useAuth,
+  useSearch,
 } from "@sidequestd/core";
 
-import type { FavoriteGameEntry, GamePage, GameSummary } from "@sidequestd/api-types";
-
-const DEBOUNCE_MS = 250;
+import type { FavoriteGameEntry, GameSummary } from "@sidequestd/api-types";
 
 /**
  * The game picker.
@@ -67,46 +65,13 @@ function GamePicker({
   onPick: (game: GameSummary) => void;
   pending: boolean;
 }) {
-  const { authedRequest } = useAuth();
   const [term, setTerm] = useState("");
-  const [results, setResults] = useState<GameSummary[]>([]);
-  const [searching, setSearching] = useState(false);
+  const { items: results, searching } = useSearch("games", term, { enabled: open });
 
   // Cleared on close so reopening does not show the last person's search.
   useEffect(() => {
-    if (!open) {
-      setTerm("");
-      setResults([]);
-    }
+    if (!open) setTerm("");
   }, [open]);
-
-  useEffect(() => {
-    const query = term.trim();
-    if (!query) {
-      setResults([]);
-      return;
-    }
-
-    let cancelled = false;
-    setSearching(true);
-    const timer = setTimeout(() => {
-      authedRequest<GamePage>(searchQuery("games", query))
-        .then((page) => {
-          if (!cancelled) setResults(page.items);
-        })
-        .catch(() => {
-          if (!cancelled) setResults([]);
-        })
-        .finally(() => {
-          if (!cancelled) setSearching(false);
-        });
-    }, DEBOUNCE_MS);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [authedRequest, term]);
 
   return (
     <Dialog

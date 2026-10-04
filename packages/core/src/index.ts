@@ -83,6 +83,18 @@ export {
   type LinkableStore,
 } from "./catalog";
 
+/* Search: the hook both clients' search fields run on. */
+export {
+  noSearchMatches,
+  SEARCH_DEBOUNCE_MS,
+  SEARCH_PROMPTS,
+  useSearch,
+  type SearchKind,
+  type SearchOptions,
+  type SearchResult,
+  type SearchState,
+} from "./search";
+
 /* Reviews: presentation, and the limits a client checks before uploading. */
 export {
   ACCEPTED_MEDIA,
