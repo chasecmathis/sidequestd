@@ -22,6 +22,7 @@ from app.models.enums import (
 )
 from app.models.game import (
     Game,
+    GameAlias,
     GameExternalId,
     Genre,
     Platform,
@@ -46,6 +47,7 @@ __all__ = [
     "Follow",
     "FollowStatus",
     "Game",
+    "GameAlias",
     "GameExternalId",
     "Genre",
     "LibraryMatchSource",

@@ -79,9 +79,12 @@ async def _resolve_by_title(db: AsyncSession, titles: dict[str, str]) -> dict[st
 
     One statement for the whole batch rather than a query per unmatched game: a
     real library leaves hundreds unresolved, and this runs inside a request's
-    background task. `DISTINCT ON` keeps the best candidate per appid, and the
-    existing `ix_games_title_trgm` index is what makes the similarity search
-    indexable at all.
+    background task. `DISTINCT ON` keeps the best candidate per appid.
+
+    No index serves this: a `similarity() >= threshold` join is a scan of the
+    catalog per batch whether or not a trigram index exists (only the `%`
+    operator can use one). It runs in the background, so that is tolerable at
+    today's sizes; see `.context/product/roadmap.md`.
     """
     if not titles:
         return {}

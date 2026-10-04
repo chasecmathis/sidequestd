@@ -3,7 +3,7 @@ type: system_architecture
 title: "Deployment Runbook"
 description: "Production deployment on Fly.io: required environment, manual deploy, HTTPS cookie settings, post-deploy checks, continuous deployment, rollbacks and scheduled jobs."
 tags: [architecture, deployment, fly, production, operations, runbook]
-timestamp: 2026-10-03T21:25:55Z
+timestamp: 2026-10-04T03:26:35Z
 resource: .github/workflows/ci.yml
 ---
 
@@ -277,11 +277,20 @@ platform that shares one environment between the migration job and the serving
 containers, which is exactly what Fly does, would turn the deploy's single
 migration into a silent no-op.
 
-**Database role:** the search migration runs
-`CREATE EXTENSION IF NOT EXISTS pg_trgm`, which needs `CREATE` on the database —
-the master user on RDS/Cloud SQL, where `pg_trgm` is allow-listed. If migrations
-run as a restricted role, have a DBA install the extension once and the migration
-becomes a no-op.
+**Database role:** the search migrations run
+`CREATE EXTENSION IF NOT EXISTS pg_trgm` and `… unaccent`, which need `CREATE`
+on the database — the master user on RDS/Cloud SQL, where both are
+allow-listed. If migrations run as a restricted role, have a DBA install both
+extensions once and those statements become no-ops. Confirm `unaccent` is
+available on the managed Postgres before deploying `5d2e8b4c9a17`.
+
+**Search relevance migration (`5d2e8b4c9a17`):** adding the STORED generated
+search columns rewrites `games` (about 350k rows on a full catalog) and `users`
+under an exclusive lock: both tables are unreadable and unwritable while it
+runs, so search, browse, sign-in and profile reads wait for it. Expect seconds
+at that size. Its new indexes then build `CONCURRENTLY`, without blocking. Aliases stay empty until the next IGDB sync (Sunday's
+`catalog-sync.yml`, or `npm run api:seed -- --igdb --all` by hand); search
+works without them, only abbreviations wait.
 
 ### Single-box / rehearsal
 

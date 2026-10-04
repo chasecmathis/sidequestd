@@ -3,7 +3,7 @@ type: domain_concept
 title: "Status, Known Limits and Roadmap"
 description: "What is built, what the spec asks for that is not, the known limits to fix before scaling, and candidate next work."
 tags: [product, status, roadmap, limits, todo]
-timestamp: 2026-10-03T21:25:55Z
+timestamp: 2026-10-04T03:26:35Z
 resource: ./
 ---
 
@@ -17,7 +17,7 @@ whenever a slice lands or a limit is fixed.
 
 The MVP surface of the [spec](spec.md) (§10) plus several fast-follows:
 auth and sessions, profiles with favorites and stats, catalog, browse,
-Discover and search, reviews with photo and clip media, the follow graph with
+Discover and search (typo-, accent- and alias-tolerant games; follow-graph-ranked people), reviews with photo and clip media, the follow graph with
 private-account approval, likes and comments, the unified Home feed (followed
 reviews, backlog activity and a recommended blend), the four backlog lists,
 in-app notifications with Expo push, personalised recommendations, Steam
@@ -58,9 +58,15 @@ building them.
   day 7. Tune it against real traffic.
 - **Proxy headers:** set `FORWARDED_ALLOW_IPS` to the load balancer, or the IP
   recorded against refresh tokens will be the balancer's.
-- **`pg_trgm`:** the search migration runs `CREATE EXTENSION IF NOT EXISTS
-  pg_trgm`, which needs CREATE on the database. If migrations run as a
-  restricted role, have a DBA install the extension once first.
+- **`pg_trgm` and `unaccent`:** the search migrations run `CREATE EXTENSION
+  IF NOT EXISTS` for both, which needs CREATE on the database. If migrations
+  run as a restricted role, have a DBA install them once first.
+- **Steam title fallback scans the catalog:** `library_sync._resolve_by_title`
+  joins on `similarity() >= threshold`, which no index can serve, so each sync
+  batch walks all of `games`. It runs in the background; rewrite it on the `%`
+  operator (or the search keys) if syncs get slow.
+- **Search weights are hand-tuned** against `tests/test_search_relevance.py`,
+  not against real queries. Revisit them once there is traffic to learn from.
 - **Production boot guard:** with `ENVIRONMENT` set to `staging` or
   `production`, the API refuses to start while any secret, CORS, cookie, SMTP
   or S3 setting is still at its dev default, and it lists all of them at once.

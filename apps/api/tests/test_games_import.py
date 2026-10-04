@@ -13,6 +13,7 @@ from pathlib import Path
 import httpx
 import pytest
 import sqlalchemy as sa
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -23,6 +24,7 @@ from app.models.enums import BacklogStatus
 from app.models.game import (
     EXTERNAL_ID_SOURCE_STEAM,
     Game,
+    GameAlias,
     GameExternalId,
     Genre,
     Platform,
@@ -990,3 +992,113 @@ async def test_dropping_a_game_takes_its_store_ids_with_it(db: AsyncSession) -> 
     await delete_all_games(db)
 
     assert (await db.execute(sa.select(GameExternalId))).scalars().all() == []
+
+
+# --- Aliases ----------------------------------------------------------------
+#
+# Other names a game goes by, so search finds "GTA V" (SPEC §6.6). Written with
+# the same rule as store ids: a record that carries none leaves the set alone.
+
+
+async def _aliases(db: AsyncSession, external_id: str) -> list[str]:
+    rows = await db.execute(
+        sa.select(GameAlias.alias)
+        .join(Game, Game.id == GameAlias.game_id)
+        .where(Game.external_id == external_id)
+        .order_by(GameAlias.alias)
+    )
+    return list(rows.scalars().all())
+
+
+def _with_aliases(external_id: str, title: str, *aliases: str) -> GameRecord:
+    return GameRecord(external_id=external_id, title=title, aliases=aliases)
+
+
+def test_the_query_asks_for_alternative_names() -> None:
+    assert "alternative_names.name" in games_import.IGDB_FIELDS
+
+
+def test_igdb_alternative_names_become_aliases() -> None:
+    record = games_import._record_from_igdb(
+        {
+            "id": 1020,
+            "name": "Grand Theft Auto V",
+            "alternative_names": [
+                {"id": 1, "name": "GTA V"},
+                {"id": 2, "name": "GTA 5"},
+                {"id": 3},
+            ],
+        }
+    )
+
+    assert record.aliases == ("GTA V", "GTA 5")
+
+
+def test_a_game_with_no_alternative_names_carries_no_aliases() -> None:
+    """IGDB omits the key entirely rather than sending an empty list."""
+    assert games_import._record_from_igdb({"id": 7, "name": "Unlisted"}).aliases == ()
+
+
+async def test_an_import_writes_aliases(db: AsyncSession) -> None:
+    result = await upsert_games(
+        db, [_with_aliases("1", "Grand Theft Auto V", "GTA V", "GTA 5")], source=SEED_SOURCE
+    )
+
+    assert await _aliases(db, "1") == ["GTA 5", "GTA V"]
+    assert result.aliases_written == 2
+
+
+async def test_a_reimport_replaces_the_alias_set(db: AsyncSession) -> None:
+    await upsert_games(db, [_with_aliases("1", "Grand Theft Auto V", "GTA V")], source=SEED_SOURCE)
+
+    await upsert_games(
+        db, [_with_aliases("1", "Grand Theft Auto V", "GTA Five")], source=SEED_SOURCE
+    )
+
+    assert await _aliases(db, "1") == ["GTA Five"]
+
+
+async def test_a_record_without_aliases_leaves_them_alone(db: AsyncSession) -> None:
+    """The seed fixture sends none for most games; that is not "this game has none"."""
+    await upsert_games(db, [_with_aliases("1", "Grand Theft Auto V", "GTA V")], source=SEED_SOURCE)
+
+    await upsert_games(db, [_with_aliases("1", "Grand Theft Auto V")], source=SEED_SOURCE)
+
+    assert await _aliases(db, "1") == ["GTA V"]
+
+
+async def test_aliases_differing_only_in_case_or_accents_collapse(db: AsyncSession) -> None:
+    await upsert_games(
+        db,
+        [_with_aliases("1", "Pocket Monsters Red", "Pokémon Red", "pokemon red")],
+        source=SEED_SOURCE,
+    )
+
+    assert len(await _aliases(db, "1")) == 1
+
+
+async def test_an_alias_that_only_repeats_the_title_is_dropped(db: AsyncSession) -> None:
+    """It can only ever repeat a match the title already made."""
+    result = await upsert_games(
+        db,
+        [_with_aliases("1", "Hades", "HADES", "Hades!", "!!!", "Hades: Battle Out of Hell")],
+        source=SEED_SOURCE,
+    )
+
+    assert await _aliases(db, "1") == ["Hades: Battle Out of Hell"]
+    assert result.aliases_written == 1
+
+
+async def test_a_renamed_game_is_found_by_its_new_title(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """The search key is generated, so a rename on re-import re-keys the row."""
+    await upsert_games(db, [_with_aliases("1", "Untitled Goose Project")], source=SEED_SOURCE)
+    await upsert_games(db, [_with_aliases("1", "Untitled Goose Game")], source=SEED_SOURCE)
+
+    async def titles(query: str) -> list[str]:
+        response = await client.get("/api/v1/search/games", params={"q": query})
+        return [card["title"] for card in response.json()["items"]]
+
+    assert await titles("goose game") == ["Untitled Goose Game"]
+    assert await titles("goose project") == []

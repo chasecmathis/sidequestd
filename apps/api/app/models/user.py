@@ -10,6 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, CreatedAtMixin, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.search_keys import search_compact, search_key
 
 if TYPE_CHECKING:
     from app.models.auth import PasswordResetToken, RefreshToken
@@ -37,6 +38,18 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     bio: Mapped[str | None] = mapped_column(sa.String(BIO_MAX_LENGTH))
     avatar_url: Mapped[str | None] = mapped_column(sa.Text)
 
+    # What user search matches against; see app.models.search_keys.
+    username_key: Mapped[str] = mapped_column(sa.Text, search_key("username"), deferred=True)
+    username_compact: Mapped[str] = mapped_column(
+        sa.Text, search_compact("username"), deferred=True
+    )
+    display_name_key: Mapped[str | None] = mapped_column(
+        sa.Text, search_key("display_name"), deferred=True
+    )
+    display_name_compact: Mapped[str | None] = mapped_column(
+        sa.Text, search_compact("display_name"), deferred=True
+    )
+
     is_private: Mapped[bool] = mapped_column(sa.Boolean, default=False, server_default=sa.false())
     is_active: Mapped[bool] = mapped_column(sa.Boolean, default=True, server_default=sa.true())
     email_verified_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
@@ -55,19 +68,43 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         sa.CheckConstraint("username = lower(username)", name="username_is_lowercase"),
         sa.CheckConstraint("email = lower(email)", name="email_is_lowercase"),
         sa.CheckConstraint("char_length(username) >= 3", name="username_min_length"),
-        # User search (SPEC §6.6) matches substrings of either name; see the note
-        # on the equivalent index over games.title.
+        # User search (SPEC §6.6) matches the normalized keys of either name; see
+        # the note on the equivalent indexes over games.search_key. Every branch
+        # of the filter needs one: a single unindexed branch turns the planner's
+        # BitmapOr into a sequential scan.
         sa.Index(
-            "ix_users_username_trgm",
-            "username",
+            "ix_users_username_key_trgm",
+            "username_key",
             postgresql_using="gin",
-            postgresql_ops={"username": "gin_trgm_ops"},
+            postgresql_ops={"username_key": "gin_trgm_ops"},
         ),
         sa.Index(
-            "ix_users_display_name_trgm",
-            "display_name",
+            "ix_users_username_compact_trgm",
+            "username_compact",
             postgresql_using="gin",
-            postgresql_ops={"display_name": "gin_trgm_ops"},
+            postgresql_ops={"username_compact": "gin_trgm_ops"},
+        ),
+        sa.Index(
+            "ix_users_display_name_key_trgm",
+            "display_name_key",
+            postgresql_using="gin",
+            postgresql_ops={"display_name_key": "gin_trgm_ops"},
+        ),
+        sa.Index(
+            "ix_users_display_name_compact_trgm",
+            "display_name_compact",
+            postgresql_using="gin",
+            postgresql_ops={"display_name_compact": "gin_trgm_ops"},
+        ),
+        sa.Index(
+            "ix_users_username_key_prefix",
+            "username_key",
+            postgresql_ops={"username_key": "text_pattern_ops"},
+        ),
+        sa.Index(
+            "ix_users_display_name_key_prefix",
+            "display_name_key",
+            postgresql_ops={"display_name_key": "text_pattern_ops"},
         ),
     )
 

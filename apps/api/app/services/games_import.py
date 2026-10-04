@@ -41,6 +41,7 @@ from app.models.backlog import BacklogItem
 from app.models.game import (
     EXTERNAL_ID_SOURCE_STEAM,
     Game,
+    GameAlias,
     GameExternalId,
     Genre,
     Platform,
@@ -82,6 +83,9 @@ IGDB_MAIN_GAMES_FILTER = "game_type = 0"
 # alone is the press, and both are far sparser. It is omitted from the payload
 # entirely for a game nobody has scored, rather than sent as null.
 #
+# `alternative_names` are the other names a game goes by ("GTA V", "BotW"),
+# which become `game_aliases` so search finds what people actually type.
+#
 # `external_games` is what makes a linked Steam library resolvable to catalog
 # rows. Both the source name and the legacy `category` are requested because
 # IGDB is mid-migration between them: `category` is marked deprecated in favour
@@ -91,7 +95,7 @@ IGDB_MAIN_GAMES_FILTER = "game_type = 0"
 IGDB_FIELDS = (
     "name, summary, first_release_date, cover.image_id, genres.name, platforms.name, "
     "total_rating, total_rating_count, external_games.uid, external_games.category, "
-    "external_games.external_game_source.name"
+    "external_games.external_game_source.name, alternative_names.name"
 )
 
 # The legacy `external_games.category` value for Steam.
@@ -126,6 +130,9 @@ class GameRecord:
     # "this game is on no store": `upsert_games` therefore leaves an existing
     # mapping alone when a record carries none. See `_write_external_ids`.
     external_ids: tuple[tuple[str, str], ...] = ()
+    # Other names the game goes by, for search. Empty means "not reported", with
+    # the same consequence as for `external_ids`: see `_write_aliases`.
+    aliases: tuple[str, ...] = ()
 
 
 @dataclass(slots=True)
@@ -136,6 +143,7 @@ class ImportResult:
     genres_created: int = 0
     platforms_created: int = 0
     external_ids_written: int = 0
+    aliases_written: int = 0
     skipped: list[str] = field(default_factory=list)
 
     def summary_line(self) -> str:
@@ -143,7 +151,8 @@ class ImportResult:
             f"{self.source}: {self.games_created} game(s) created, "
             f"{self.games_updated} updated, {self.genres_created} new genre(s), "
             f"{self.platforms_created} new platform(s), "
-            f"{self.external_ids_written} store id(s)"
+            f"{self.external_ids_written} store id(s), "
+            f"{self.aliases_written} alias(es)"
         )
 
     def merge(self, other: ImportResult) -> None:
@@ -153,6 +162,7 @@ class ImportResult:
         self.genres_created += other.genres_created
         self.platforms_created += other.platforms_created
         self.external_ids_written += other.external_ids_written
+        self.aliases_written += other.aliases_written
         self.skipped.extend(other.skipped)
 
 
@@ -191,6 +201,7 @@ def _record_from_seed(entry: dict[str, Any]) -> GameRecord:
             if entry.get("steam_appid")
             else ()
         ),
+        aliases=tuple(entry.get("aliases", ())),
     )
 
 
@@ -364,6 +375,9 @@ def _record_from_igdb(entry: dict[str, Any]) -> GameRecord:
         igdb_rating=float(rating) if rating is not None else None,
         igdb_rating_count=entry.get("total_rating_count"),
         external_ids=_steam_uids_from_igdb(entry),
+        aliases=tuple(
+            item["name"] for item in entry.get("alternative_names", []) if item.get("name")
+        ),
     )
 
 
@@ -618,6 +632,48 @@ async def _write_external_ids(
     return len(rows)
 
 
+async def _write_aliases(
+    db: AsyncSession, owned: Sequence[tuple[uuid.UUID, tuple[str, ...]]]
+) -> int:
+    """Replace the alias set of every game whose record carried aliases.
+
+    The same rule as `_write_external_ids`, for the same reason: IGDB omits
+    `alternative_names` for a game that has none, which is indistinguishable
+    from a source that never sends them (the seed fixture, for most games), so a
+    record without aliases leaves the existing set alone.
+
+    Aliases that only differ in case or accents collapse on the unique key. One
+    that normalizes to the title, or to nothing at all, is dropped: it could only
+    ever repeat a match the title already makes. Returns how many remain.
+    """
+    game_ids = [game_id for game_id, _ in owned]
+    await db.execute(sa.delete(GameAlias).where(GameAlias.game_id.in_(game_ids)))
+
+    rows = [
+        {"id": uuid.uuid4(), "game_id": game_id, "alias": name.strip()[:300]}
+        for game_id, names in owned
+        for name in names
+        if name.strip()
+    ]
+    if rows:
+        await db.execute(
+            pg_insert(GameAlias)
+            .values(rows)
+            .on_conflict_do_nothing(index_elements=[GameAlias.game_id, GameAlias.search_key])
+        )
+
+    await db.execute(
+        sa.delete(GameAlias).where(
+            GameAlias.game_id == Game.id,
+            GameAlias.game_id.in_(game_ids),
+            sa.or_(GameAlias.search_key == "", GameAlias.search_key == Game.search_key),
+        )
+    )
+    return (
+        await db.execute(sa.select(sa.func.count()).where(GameAlias.game_id.in_(game_ids)))
+    ).scalar_one()
+
+
 async def upsert_games(
     db: AsyncSession, records: Sequence[GameRecord], *, source: str
 ) -> ImportResult:
@@ -656,6 +712,7 @@ async def upsert_games(
     }
 
     owned_external_ids: list[tuple[Game, tuple[tuple[str, str], ...]]] = []
+    owned_aliases: list[tuple[Game, tuple[str, ...]]] = []
     writable = [record for record in deduplicated if record.title.strip()]
     result.skipped = [record.external_id for record in deduplicated if not record.title.strip()]
     slugs = await _allocate_slugs(
@@ -697,13 +754,21 @@ async def upsert_games(
         ]
         if record.external_ids:
             owned_external_ids.append((game, record.external_ids))
+        if record.aliases:
+            owned_aliases.append((game, record.aliases))
 
-    if owned_external_ids:
+    if owned_external_ids or owned_aliases:
         # The newly created games have no id until they reach the database, and
-        # the mapping is keyed on it.
+        # both mappings are keyed on it. Flushing also writes any renamed title,
+        # which `_write_aliases` compares against.
         await db.flush()
+    if owned_external_ids:
         result.external_ids_written = await _write_external_ids(
             db, [(game.id, pairs) for game, pairs in owned_external_ids]
+        )
+    if owned_aliases:
+        result.aliases_written = await _write_aliases(
+            db, [(game.id, names) for game, names in owned_aliases]
         )
 
     # Once for the batch, not once per record: nothing in the loop reads the

@@ -2,11 +2,10 @@
  * Finding a game to do something to.
  *
  * The web has two of these — one inline at the top of the compose screen, one
- * inside the favourites dialog — and they are the same component written twice
- * with different result limits and one extra disabled state. Here they are one,
- * because the second copy is where the two drift: the web's picker already
- * disagrees with itself about how many results to show and whether to say
- * "Searching…".
+ * inside the favourites dialog — with different result limits and one extra
+ * disabled state. Here they are one component. The searching itself is
+ * `useSearch` everywhere, so the copies can differ in layout but no longer in
+ * how they ask.
  *
  * A search rather than a browse, which is the web's reasoning and holds: the
  * catalog runs to tens of thousands of rows, and somebody pinning a favourite or
@@ -16,20 +15,17 @@
  * than filtered out. Hiding them would leave a reader hunting for a game they
  * would swear they own; pressing one is the 409 this component exists to avoid.
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
-import { releaseYearLabel, searchQuery, useAuth } from "@sidequestd/core";
-import type { GamePage, GameSummary } from "@sidequestd/api-types";
+import { releaseYearLabel, useSearch } from "@sidequestd/core";
+import type { GameSummary } from "@sidequestd/api-types";
 
 import { rounded, useStyles, type Tokens } from "@/theme";
 
 import { Cover } from "./media";
 import { SearchInput } from "./ui/field";
 import { EyebrowText, Text } from "./ui/text";
-
-/** The same wait Search uses. Long enough to skip a syllable, short enough not to feel typed-at. */
-const DEBOUNCE_MS = 250;
 
 /** A cover in a row: 3:4 at 36 wide, which is the smallest a box is recognisable at. */
 const THUMB_WIDTH = 36;
@@ -53,42 +49,10 @@ export function GamePicker({
   placeholder?: string;
 }) {
   const styles = useStyles(make);
-  const { authedRequest } = useAuth();
-
   const [term, setTerm] = useState("");
-  const [results, setResults] = useState<GameSummary[]>([]);
-  const [searching, setSearching] = useState(false);
-
-  useEffect(() => {
-    const query = term.trim();
-    if (!query) {
-      setResults([]);
-      setSearching(false);
-      return;
-    }
-
-    let cancelled = false;
-    setSearching(true);
-    const timer = setTimeout(() => {
-      authedRequest<GamePage>(searchQuery("games", query))
-        .then((page) => {
-          if (!cancelled) setResults(limit ? page.items.slice(0, limit) : page.items);
-        })
-        .catch(() => {
-          // Quiet: the field is still there and still the way forward. An error
-          // banner over a search box says nothing the empty result does not.
-          if (!cancelled) setResults([]);
-        })
-        .finally(() => {
-          if (!cancelled) setSearching(false);
-        });
-    }, DEBOUNCE_MS);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [authedRequest, term, limit]);
+  // Errors stay quiet: the field is still there and still the way forward, and
+  // an error banner over a search box says nothing the empty result does not.
+  const { items: results, searching } = useSearch("games", term, { limit });
 
   const typed = term.trim() !== "";
 

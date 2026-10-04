@@ -3,7 +3,7 @@ type: domain_concept
 title: "Product Specification (SPEC)"
 description: "Sidequestd's product requirements, with the original § numbering that code comments cite as 'SPEC §x.y', plus as-built notes where the code deliberately differs."
 tags: [product, spec, requirements, scope]
-timestamp: 2026-10-03T21:25:55Z
+timestamp: 2026-10-04T03:26:35Z
 resource: ./
 ---
 
@@ -136,7 +136,7 @@ Additional screens: Game Detail, Review Detail, User Profile (others), Create/Ed
 - **User search** — by username/display name; respects privacy (private profiles appear but content is gated).
 - Recent searches and trending searches optional.
 
-> **As built:** [Discovery: search](../domains/discovery.md#search-spec-66). Recent and trending searches are not built.
+> **As built:** [Discovery: search](../domains/discovery.md#search-spec-66): typo-, accent-, punctuation- and word-order-tolerant title search with IGDB aliases and popularity ranking; user search ranked by the follow graph. Recent and trending searches are not built.
 
 ### §6.7 Social Graph & Privacy
 - **Follow** a user. If target is **public**, follow is immediate. If **private**, it creates a **pending follow request**.

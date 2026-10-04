@@ -34,20 +34,17 @@ import {
   releaseYearLabel,
   REVIEW_TEXT_MAX_LENGTH,
   reviewPath,
-  searchQuery,
   tally,
   useAuth,
+  useSearch,
 } from "@sidequestd/core";
 
 import type {
-  GamePage,
   GameSummary,
   PlaytimeSuggestion,
   ReviewCreate,
   ReviewDetail,
 } from "@sidequestd/api-types";
-
-const DEBOUNCE_MS = 250;
 
 interface Pending {
   file: File;
@@ -56,33 +53,10 @@ interface Pending {
 }
 
 function GamePicker({ onPick }: { onPick: (game: GameSummary) => void }) {
-  const { authedRequest } = useAuth();
   const [term, setTerm] = useState("");
-  const [results, setResults] = useState<GameSummary[]>([]);
-
-  useEffect(() => {
-    const query = term.trim();
-    if (!query) {
-      setResults([]);
-      return;
-    }
-
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      authedRequest<GamePage>(searchQuery("games", query))
-        .then((page) => {
-          if (!cancelled) setResults(page.items.slice(0, 6));
-        })
-        .catch(() => {
-          if (!cancelled) setResults([]);
-        });
-    }, DEBOUNCE_MS);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [authedRequest, term]);
+  // Six rather than a page: this sits above the form, and somebody reviewing a
+  // game they just finished already knows its name.
+  const { items: results } = useSearch("games", term, { limit: 6 });
 
   return (
     <div className="space-y-3">

@@ -3,7 +3,7 @@ type: system_architecture
 title: "Shared Packages"
 description: "What @sidequestd/core, api-types and design-tokens hold, the three platform seams, import rules, and how each package is generated or tested."
 tags: [architecture, packages, core, api-types, design-tokens, monorepo]
-timestamp: 2026-10-03T22:10:00Z
+timestamp: 2026-10-04T03:26:35Z
 resource: packages/
 ---
 
@@ -49,6 +49,17 @@ Import from the package root (`import { useAuth, formatStars } from
   `@sidequestd/core/theme-keys`. Through the barrel it comes via a
   `"use client"` module and silently resolves to `undefined`. See
   `src/theme-keys.ts`.
+
+### Search
+
+`useSearch(kind, term, { limit?, debounceMs?, enabled? })` (`src/search.ts`) is
+the only way either client searches: the two Search screens and all three game
+pickers use it. It debounces (250 ms, because search is rate limited), ignores
+responses to a term the caller has moved past, and guards `loadMore` against a
+late page landing under newer results. A page-one failure clears the items,
+because they answered an older term. `SEARCH_PROMPTS` and `noSearchMatches`
+hold the shared empty-state copy. `searchQuery(kind, term, cursor?, limit?)` is
+the URL contract.
 
 Tests: `npm run core:test`. They came over with the modules when core was
 extracted from `apps/web/src/lib`.
